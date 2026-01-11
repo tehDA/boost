@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <string>
 
 using namespace smooth_ui_toolkit;
 using namespace smooth_ui_toolkit::lvgl_cpp;
@@ -252,7 +253,7 @@ static void on_volume_label_long_pressed(lv_event_t* e)
 
 static std::string get_vol_str()
 {
-    return fmt::format("{}%", GetHAL()->getSpeakerVolume());
+    return std::to_string(GetHAL()->getSpeakerVolume()) + "%";
 }
 
 static void update_vol_str(Label* label_vol)
