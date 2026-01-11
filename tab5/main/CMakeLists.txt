@@ -1,11 +1,11 @@
 file(GLOB_RECURSE APP_LAYER_SRCS
-    ../../../app/*.c
-    ../../../app/*.cc
-    ../../../app/*.cpp
+    ../../app/*.c
+    ../../app/*.cc
+    ../../app/*.cpp
 )
 
 set(APP_LAYER_INCS
-    ../../../app
+    ../../app
 )
 
 file(GLOB_RECURSE MY_HAL_SRCS

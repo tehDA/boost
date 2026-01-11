@@ -1,10 +1,16 @@
 ## IDF Component Manager Manifest File
 dependencies:
   ## Required IDF version
-  idf: '>=5.3'
+  idf: '>=5.5'
+
+  # ST7123 LCD + touch (your Tab5 revision)
+  espressif/esp_lcd_st7123: ^1.0.2
+  espressif/esp_lcd_touch_st7123: ^1.0.1
+
+  # Keep your other deps
   espressif/esp_hosted: 1.4.0
   espressif/esp_wifi_remote: 0.8.5
   chmorgan/esp-audio-player: 1.0.7
   chmorgan/esp-file-iterator: 1.0.0
   espressif/led_strip: 3.0.0
-  espressif/esp_lcd_ili9881c: ^1.0.1
+  espressif/esp_lcd_ili9881c: ^1.1.0
