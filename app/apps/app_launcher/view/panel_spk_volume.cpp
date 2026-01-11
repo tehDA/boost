@@ -3,7 +3,7 @@
 #include <apps/utils/ui/window.h>
 
 #include <esp_log.h>
-#include <fmt/core.h>
+//#include <fmt/core.h>
 #include <hal/hal.h>
 #include <lvgl.h>
 #include <mooncake_log.h>
