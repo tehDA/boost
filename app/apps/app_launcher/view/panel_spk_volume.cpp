@@ -3,16 +3,29 @@
 #include <apps/utils/ui/window.h>
 
 #include <esp_log.h>
+#include <hal/hal.h>
 #include <lvgl.h>
+#include <mooncake_log.h>
+#include <smooth_ui_toolkit.h>
+#include <smooth_lvgl.h>
 
 #include <algorithm>
 #include <memory>
+#include <string>
 
+using namespace smooth_ui_toolkit;
 using namespace smooth_ui_toolkit::lvgl_cpp;
 
 namespace launcher_view {
 
 static const char* TAG = "boost_tune";
+
+static constexpr int16_t kLabelPosX   = 591;
+static constexpr int16_t kLabelPosY   = 198;
+static constexpr int16_t kBtnUpPosX   = 499;
+static constexpr int16_t kBtnUpPosY   = 270;
+static constexpr int16_t kBtnDownPosX = 593;
+static constexpr int16_t kBtnDownPosY = 270;
 
 namespace {
 
@@ -39,7 +52,7 @@ public:
 protected:
     void onOpen() override
     {
-        _window->clearChildren();
+        lv_obj_clean(_window->get());
 
         lv_obj_t* root = _window->get();
         lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
@@ -221,7 +234,7 @@ static void open_boost_tune_window(lv_obj_t* parent)
     }
 
     const auto st = s_boost_tune_window->getState();
-    if (st == ui::Window::State::Opened || st == ui::Window::State::Opening) {
+    if (st == ui::Window::Opened || st == ui::Window::Opening) {
         return;
     }
 
@@ -239,15 +252,17 @@ static void on_volume_label_long_pressed(lv_event_t* e)
 
 static std::string get_vol_str()
 {
-    return fmt::format("{}%", GetHAL()->getSpeakerVolume());
+    return std::to_string(GetHAL()->getSpeakerVolume()) + "%";
 }
 
-static void update_vol_str(std::shared_ptr<Label> label_vol)
+static void update_vol_str(Label* label_vol)
 {
-    if (label_vol) label_vol->setText(get_vol_str());
+    if (label_vol) {
+        label_vol->setText(get_vol_str());
+    }
 }
 
-static void update_vol(int offset, std::shared_ptr<Label> label_vol)
+static void update_vol(int offset, Label* label_vol)
 {
     int vol = GetHAL()->getSpeakerVolume();
 
@@ -263,53 +278,50 @@ static void update_vol(int offset, std::shared_ptr<Label> label_vol)
 
 void PanelSpeakerVolume::init()
 {
-    _container->addFlag(LV_OBJ_FLAG_CLICKABLE);
-    _container->setFlexFlow(LV_FLEX_FLOW_ROW);
-    _container->setFlexAlign(LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-
-    _btn_minus = std::make_shared<Button>(_container->get());
-    _btn_minus->setSize(50, 50);
-    _btn_minus->setStyleRadius(LV_RADIUS_CIRCLE, 0);
-    _btn_minus->setStyleBgColor(lv_palette_darken(LV_PALETTE_GREY, 2), 0);
-    _btn_minus->setStyleBgOpa(LV_OPA_COVER, 0);
-    _btn_minus->addEventCb(
-        [](lv_event_t*) {
-            update_vol(-10, _label_volume);
-        },
-        LV_EVENT_CLICKED);
-
-    auto label_minus = std::make_shared<Label>(_btn_minus->get());
-    label_minus->setText("-");
-    label_minus->setStyleTextFont(&lv_font_montserrat_24, 0);
-    label_minus->center();
-
-    _label_volume = std::make_shared<Label>(_container->get());
+    _label_volume = std::make_unique<Label>(lv_screen_active());
+    _label_volume->align(LV_ALIGN_CENTER, kLabelPosX, kLabelPosY);
+    _label_volume->setTextFont(&lv_font_montserrat_24);
+    _label_volume->setTextColor(lv_color_hex(0xFEFEFE));
     _label_volume->setText(get_vol_str());
-    _label_volume->setStyleTextFont(&lv_font_montserrat_24, 0);
 
     // Long-press the volume label to open the audio tuning window.
     _label_volume->addEventCb(&on_volume_label_long_pressed, LV_EVENT_LONG_PRESSED);
 
-    _btn_plus = std::make_shared<Button>(_container->get());
-    _btn_plus->setSize(50, 50);
-    _btn_plus->setStyleRadius(LV_RADIUS_CIRCLE, 0);
-    _btn_plus->setStyleBgColor(lv_palette_darken(LV_PALETTE_GREY, 2), 0);
-    _btn_plus->setStyleBgOpa(LV_OPA_COVER, 0);
-    _btn_plus->addEventCb(
-        [](lv_event_t*) {
-            update_vol(10, _label_volume);
-        },
-        LV_EVENT_CLICKED);
+    _btn_up = std::make_unique<Container>(lv_screen_active());
+    _btn_up->align(LV_ALIGN_CENTER, kBtnUpPosX, kBtnUpPosY);
+    _btn_up->setSize(81, 85);
+    _btn_up->setOpa(0);
+    _btn_up->onClick().connect([&]() {
+        _label_y_anim.teleport(kLabelPosY - 8);
+        _label_y_anim = kLabelPosY;
 
-    auto label_plus = std::make_shared<Label>(_btn_plus->get());
-    label_plus->setText("+");
-    label_plus->setStyleTextFont(&lv_font_montserrat_24, 0);
-    label_plus->center();
+        update_vol(10, _label_volume.get());
+    });
+
+    _btn_down = std::make_unique<Container>(lv_screen_active());
+    _btn_down->align(LV_ALIGN_CENTER, kBtnDownPosX, kBtnDownPosY);
+    _btn_down->setSize(81, 85);
+    _btn_down->setOpa(0);
+    _btn_down->onClick().connect([&]() {
+        _label_y_anim.teleport(kLabelPosY + 8);
+        _label_y_anim = kLabelPosY;
+
+        update_vol(-10, _label_volume.get());
+    });
+
+    _label_y_anim.easingOptions().duration = 0.2;
+    _label_y_anim.teleport(kLabelPosY);
 }
 
-void PanelSpeakerVolume::update()
+void PanelSpeakerVolume::update(bool isStacked)
 {
-    update_vol_str(_label_volume);
+    if (_label_volume) {
+        update_vol_str(_label_volume.get());
+    }
+
+    if (!_label_y_anim.done()) {
+        _label_volume->setY(_label_y_anim);
+    }
 }
 
 } // namespace launcher_view
