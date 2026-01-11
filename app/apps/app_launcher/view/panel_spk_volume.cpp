@@ -1,288 +1,401 @@
-/*
- * SPDX-FileCopyrightText: 2025 M5Stack Technology CO LTD
- *
- * SPDX-License-Identifier: MIT
- */
 #include "view.h"
-#include <algorithm>
-#include <lvgl.h>
-#include <hal/hal.h>
+
 #include <memory>
-#include <cstdio>
+#include "esp_log.h"
 
-#include "apps/utils/dsp/boost_settings.h"
-#include "apps/utils/ui/window.h"
-#include <mooncake_log.h>
-#include <smooth_ui_toolkit.h>
-#include <smooth_lvgl.h>
-#include <apps/utils/audio/audio.h>
+static const char* TAG = "panel_spk_volume";
 
-using namespace launcher_view;
-using namespace smooth_ui_toolkit;
-using namespace smooth_ui_toolkit::lvgl_cpp;
-
-static const std::string _tag = "panel-spk-vol";
-
-static constexpr int16_t _label_pos_x    = 605;
-static constexpr int16_t _label_pos_y    = 240;
-static constexpr int16_t _btn_up_pos_x   = 499;
-static constexpr int16_t _btn_up_pos_y   = 312;
-static constexpr int16_t _btn_down_pos_x = 593;
-static constexpr int16_t _btn_down_pos_y = 312;
-
-static constexpr int16_t _midi_up   = 64 + 24;
-static constexpr int16_t _midi_down = 60 + 24;
-static constexpr int16_t _midi_top  = 64 + 8 + 24;
 namespace {
 
-static lv_obj_t* make_row(lv_obj_t* parent, const char* label_txt)
-{
-    lv_obj_t* row = lv_obj_create(parent);
-    lv_obj_set_width(row, lv_pct(100));
-    lv_obj_set_height(row, LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_all(row, 12, 0);
-    lv_obj_set_style_pad_gap(row, 12, 0);
-    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+// -----------------------------------------------------------------------------
+// Minimal, extensible "audio tuning" state.
+// This is intentionally simple for now; later we can wire these values into the
+// audio pipeline (EQ/filters/beamforming/etc) and persist to NVS.
+// -----------------------------------------------------------------------------
+struct BoostAudioTuning {
+    bool enable_processing = true;
+    bool mono_mixdown = false;
 
-    lv_obj_t* label = lv_label_create(row);
-    lv_label_set_text(label, label_txt);
-    lv_obj_set_width(label, lv_pct(40));
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
-    return row;
+    bool hpf_enable = false;
+    int  hpf_hz = 120;
+
+    bool lpf_enable = false;
+    int  lpf_hz = 12000;
+
+    bool beamforming_enable = false;
+    int  near_far = 50;          // 0..100 (0=near field, 100=far field)
+    int  mic_gain_db = 0;        // placeholder
+};
+
+BoostAudioTuning g_tune;
+
+// Helpers for LVGL event target casting (LVGL9 headers sometimes type this as void*)
+static inline lv_obj_t* lv_event_target_obj(lv_event_t* e)
+{
+    return (lv_obj_t*)lv_event_get_target(e);
 }
 
-static void set_label_value(lv_obj_t* label, const char* fmt, float v)
-{
-    char buf[64];
-    std::snprintf(buf, sizeof(buf), fmt, v);
-    lv_label_set_text(label, buf);
-}
-
-class BoostTuneWindow : public ui::Window
-{
+// -----------------------------------------------------------------------------
+// Boost tuning window
+// -----------------------------------------------------------------------------
+class BoostTuneWindow : public ui::Window {
 public:
-    explicit BoostTuneWindow(lv_disp_t* disp) : ui::Window(disp) {}
-
-    void init() override
+    BoostTuneWindow()
     {
-        ui::Window::init("Audio tuning");
+        config().title = "Audio tuning";
+        config().keyframes.close_size = LV_COORD_MAX; // will be filled when opening
+        config().keyframes.open_size  = { 340, 520 };
+        config().keyframes.close_pos  = { 0, 0 };
+        config().keyframes.open_pos   = { 10, 30 };
+        config().keyframes.control_points[0] = { 0.34f, 1.56f };
+        config().keyframes.control_points[1] = { 0.64f, 1.00f };
+        config().keyframes.anim_time = 220;
+    }
 
-        lv_obj_t* root = _window->get();   // lvgl_cpp::Container -> lv_obj_t*
-        lv_obj_set_style_pad_all(root, 16, 0);
-        lv_obj_set_style_pad_gap(root, 14, 0);
-        lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(root, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+private:
+    lv_obj_t* _content = nullptr;
 
-        const auto settings = app::dsp::BoostSettingsStore::instance().get();
+    // Widgets we may want to refresh when window re-opens
+    lv_obj_t* _sw_processing = nullptr;
+    lv_obj_t* _sw_mono = nullptr;
+    lv_obj_t* _sw_hpf = nullptr;
+    lv_obj_t* _sl_hpf = nullptr;
+    lv_obj_t* _sw_lpf = nullptr;
+    lv_obj_t* _sl_lpf = nullptr;
+    lv_obj_t* _sw_beam = nullptr;
+    lv_obj_t* _sl_near_far = nullptr;
 
-        // Enable
+    static lv_obj_t* create_row(lv_obj_t* parent)
+    {
+        lv_obj_t* row = lv_obj_create(parent);
+        lv_obj_set_width(row, lv_pct(100));
+        lv_obj_set_height(row, LV_SIZE_CONTENT);
+        lv_obj_set_style_pad_all(row, 8, 0);
+        lv_obj_set_style_border_width(row, 0, 0);
+        lv_obj_set_style_bg_opa(row, LV_OPA_0, 0);
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_column(row, 10, 0);
+        return row;
+    }
+
+    static lv_obj_t* create_label(lv_obj_t* parent, const char* text)
+    {
+        lv_obj_t* l = lv_label_create(parent);
+        lv_label_set_text(l, text);
+        lv_obj_set_style_text_font(l, &lv_font_montserrat_16, 0);
+        lv_obj_set_flex_grow(l, 1);
+        return l;
+    }
+
+    static lv_obj_t* create_switch(lv_obj_t* parent, bool initial, lv_event_cb_t cb, void* user)
+    {
+        lv_obj_t* sw = lv_switch_create(parent);
+        if (initial) {
+            lv_obj_add_state(sw, LV_STATE_CHECKED);
+        } else {
+            lv_obj_clear_state(sw, LV_STATE_CHECKED);
+        }
+        lv_obj_add_event_cb(sw, cb, LV_EVENT_VALUE_CHANGED, user);
+        return sw;
+    }
+
+    static lv_obj_t* create_slider(lv_obj_t* parent, int min, int max, int initial, lv_event_cb_t cb, void* user)
+    {
+        lv_obj_t* s = lv_slider_create(parent);
+        lv_slider_set_range(s, min, max);
+        lv_slider_set_value(s, initial, LV_ANIM_OFF);
+        lv_obj_set_width(s, 160);
+        lv_obj_add_event_cb(s, cb, LV_EVENT_VALUE_CHANGED, user);
+        return s;
+    }
+
+    // ----- callbacks -----
+    static void on_sw_processing(lv_event_t* e)
+    {
+        lv_obj_t* sw = lv_event_target_obj(e);
+        g_tune.enable_processing = lv_obj_has_state(sw, LV_STATE_CHECKED);
+        ESP_LOGI(TAG, "tune: processing=%d", (int)g_tune.enable_processing);
+    }
+
+    static void on_sw_mono(lv_event_t* e)
+    {
+        lv_obj_t* sw = lv_event_target_obj(e);
+        g_tune.mono_mixdown = lv_obj_has_state(sw, LV_STATE_CHECKED);
+        ESP_LOGI(TAG, "tune: mono_mixdown=%d", (int)g_tune.mono_mixdown);
+    }
+
+    static void on_sw_hpf(lv_event_t* e)
+    {
+        lv_obj_t* sw = lv_event_target_obj(e);
+        g_tune.hpf_enable = lv_obj_has_state(sw, LV_STATE_CHECKED);
+        ESP_LOGI(TAG, "tune: hpf_enable=%d", (int)g_tune.hpf_enable);
+    }
+
+    static void on_sl_hpf(lv_event_t* e)
+    {
+        lv_obj_t* s = lv_event_target_obj(e);
+        g_tune.hpf_hz = (int)lv_slider_get_value(s);
+        ESP_LOGI(TAG, "tune: hpf_hz=%d", g_tune.hpf_hz);
+    }
+
+    static void on_sw_lpf(lv_event_t* e)
+    {
+        lv_obj_t* sw = lv_event_target_obj(e);
+        g_tune.lpf_enable = lv_obj_has_state(sw, LV_STATE_CHECKED);
+        ESP_LOGI(TAG, "tune: lpf_enable=%d", (int)g_tune.lpf_enable);
+    }
+
+    static void on_sl_lpf(lv_event_t* e)
+    {
+        lv_obj_t* s = lv_event_target_obj(e);
+        g_tune.lpf_hz = (int)lv_slider_get_value(s);
+        ESP_LOGI(TAG, "tune: lpf_hz=%d", g_tune.lpf_hz);
+    }
+
+    static void on_sw_beam(lv_event_t* e)
+    {
+        lv_obj_t* sw = lv_event_target_obj(e);
+        g_tune.beamforming_enable = lv_obj_has_state(sw, LV_STATE_CHECKED);
+        ESP_LOGI(TAG, "tune: beamforming=%d", (int)g_tune.beamforming_enable);
+    }
+
+    static void on_sl_near_far(lv_event_t* e)
+    {
+        lv_obj_t* s = lv_event_target_obj(e);
+        g_tune.near_far = (int)lv_slider_get_value(s);
+        ESP_LOGI(TAG, "tune: near_far=%d", g_tune.near_far);
+    }
+
+    void onInit() override
+    {
+        // Content container
+        _content = lv_obj_create(_window->get());
+        lv_obj_set_size(_content, lv_pct(100), lv_pct(100));
+        lv_obj_set_style_border_width(_content, 0, 0);
+        lv_obj_set_style_pad_all(_content, 10, 0);
+        lv_obj_set_style_pad_row(_content, 10, 0);
+        lv_obj_set_flex_flow(_content, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_scroll_dir(_content, LV_DIR_VER);
+        lv_obj_set_scrollbar_mode(_content, LV_SCROLLBAR_MODE_AUTO);
+
+        // Processing enable
         {
-            lv_obj_t* row = make_row(root, "Enable");
-            lv_obj_t* sw = lv_switch_create(row);
-            if (settings.enabled) lv_obj_add_state(sw, LV_STATE_CHECKED);
-
-            lv_obj_add_event_cb(sw, [](lv_event_t* e) {
-                bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-                app::dsp::BoostSettingsStore::instance().set_enabled(on);
-            }, LV_EVENT_VALUE_CHANGED, nullptr);
+            lv_obj_t* row = create_row(_content);
+            create_label(row, "Processing");
+            _sw_processing = create_switch(row, g_tune.enable_processing, on_sw_processing, nullptr);
         }
 
-        // Mono mix
+        // Mono mixdown
         {
-            lv_obj_t* row = make_row(root, "Mono mix");
-            lv_obj_t* sw = lv_switch_create(row);
-            if (settings.mono_mix) lv_obj_add_state(sw, LV_STATE_CHECKED);
-
-            lv_obj_add_event_cb(sw, [](lv_event_t* e) {
-                bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-                app::dsp::BoostSettingsStore::instance().set_mono(on);
-            }, LV_EVENT_VALUE_CHANGED, nullptr);
+            lv_obj_t* row = create_row(_content);
+            create_label(row, "Mono output");
+            _sw_mono = create_switch(row, g_tune.mono_mixdown, on_sw_mono, nullptr);
         }
 
-        // Pre gain
+        // HPF enable + cutoff
         {
-            lv_obj_t* row = make_row(root, "Pre gain (dB)");
-            lv_obj_t* slider = lv_slider_create(row);
-            lv_slider_set_range(slider, -24, 24);
-            lv_slider_set_value(slider, (int)settings.pre_gain_db, LV_ANIM_OFF);
-            lv_obj_set_width(slider, lv_pct(45));
-
-            lv_obj_t* val = lv_label_create(row);
-            lv_obj_set_style_text_font(val, &lv_font_montserrat_16, 0);
-            set_label_value(val, "%.0f", (float)lv_slider_get_value(slider));
-
-            lv_obj_add_event_cb(slider, [](lv_event_t* e) {
-                auto* s = lv_event_get_target(e);
-                float db = (float)lv_slider_get_value(s);
-                app::dsp::BoostSettingsStore::instance().set_pre_gain_db(db);
-                set_label_value((lv_obj_t*)lv_event_get_user_data(e), "%.0f", db);
-            }, LV_EVENT_VALUE_CHANGED, val);
+            lv_obj_t* row = create_row(_content);
+            create_label(row, "HPF");
+            _sw_hpf = create_switch(row, g_tune.hpf_enable, on_sw_hpf, nullptr);
+            _sl_hpf = create_slider(row, 20, 2000, g_tune.hpf_hz, on_sl_hpf, nullptr);
         }
 
-        // HPF
+        // LPF enable + cutoff
         {
-            lv_obj_t* row = make_row(root, "HPF (Hz)");
-            lv_obj_t* slider = lv_slider_create(row);
-            lv_slider_set_range(slider, 0, 500);
-            lv_slider_set_value(slider, (int)settings.hpf_hz, LV_ANIM_OFF);
-            lv_obj_set_width(slider, lv_pct(45));
-
-            lv_obj_t* val = lv_label_create(row);
-            lv_obj_set_style_text_font(val, &lv_font_montserrat_16, 0);
-            set_label_value(val, "%.0f", (float)lv_slider_get_value(slider));
-
-            lv_obj_add_event_cb(slider, [](lv_event_t* e) {
-                auto* s = lv_event_get_target(e);
-                float hz = (float)lv_slider_get_value(s);
-                app::dsp::BoostSettingsStore::instance().set_hpf_hz(hz);
-                set_label_value((lv_obj_t*)lv_event_get_user_data(e), "%.0f", hz);
-            }, LV_EVENT_VALUE_CHANGED, val);
+            lv_obj_t* row = create_row(_content);
+            create_label(row, "LPF");
+            _sw_lpf = create_switch(row, g_tune.lpf_enable, on_sw_lpf, nullptr);
+            _sl_lpf = create_slider(row, 2000, 20000, g_tune.lpf_hz, on_sl_lpf, nullptr);
         }
 
-        // LPF
+        // Beamforming + near/far
         {
-            lv_obj_t* row = make_row(root, "LPF (Hz)");
-            lv_obj_t* slider = lv_slider_create(row);
-            lv_slider_set_range(slider, 1000, 8000);
-            lv_slider_set_value(slider, (int)settings.lpf_hz, LV_ANIM_OFF);
-            lv_obj_set_width(slider, lv_pct(45));
-
-            lv_obj_t* val = lv_label_create(row);
-            lv_obj_set_style_text_font(val, &lv_font_montserrat_16, 0);
-            set_label_value(val, "%.0f", (float)lv_slider_get_value(slider));
-
-            lv_obj_add_event_cb(slider, [](lv_event_t* e) {
-                auto* s = lv_event_get_target(e);
-                float hz = (float)lv_slider_get_value(s);
-                app::dsp::BoostSettingsStore::instance().set_lpf_hz(hz);
-                set_label_value((lv_obj_t*)lv_event_get_user_data(e), "%.0f", hz);
-            }, LV_EVENT_VALUE_CHANGED, val);
+            lv_obj_t* row = create_row(_content);
+            create_label(row, "Beamforming");
+            _sw_beam = create_switch(row, g_tune.beamforming_enable, on_sw_beam, nullptr);
+            _sl_near_far = create_slider(row, 0, 100, g_tune.near_far, on_sl_near_far, nullptr);
         }
 
-        // Noise reduction
+        // Note / placeholder
         {
-            lv_obj_t* row = make_row(root, "Noise reduct.");
-            lv_obj_t* slider = lv_slider_create(row);
-            lv_slider_set_range(slider, 0, 100);
-            lv_slider_set_value(slider, (int)(settings.noise_reduction * 100.0f), LV_ANIM_OFF);
-            lv_obj_set_width(slider, lv_pct(45));
-
-            lv_obj_t* val = lv_label_create(row);
-            lv_obj_set_style_text_font(val, &lv_font_montserrat_16, 0);
-            set_label_value(val, "%.0f%%", (float)lv_slider_get_value(slider));
-
-            lv_obj_add_event_cb(slider, [](lv_event_t* e) {
-                auto* s = lv_event_get_target(e);
-                float v01 = (float)lv_slider_get_value(s) / 100.0f;
-                app::dsp::BoostSettingsStore::instance().set_noise_reduction(v01);
-                set_label_value((lv_obj_t*)lv_event_get_user_data(e), "%.0f%%", v01 * 100.0f);
-            }, LV_EVENT_VALUE_CHANGED, val);
-        }
-
-        // Speech boost
-        {
-            lv_obj_t* row = make_row(root, "Speech boost");
-            lv_obj_t* slider = lv_slider_create(row);
-            lv_slider_set_range(slider, 0, 100);
-            lv_slider_set_value(slider, (int)(settings.speech_boost * 100.0f), LV_ANIM_OFF);
-            lv_obj_set_width(slider, lv_pct(45));
-
-            lv_obj_t* val = lv_label_create(row);
-            lv_obj_set_style_text_font(val, &lv_font_montserrat_16, 0);
-            set_label_value(val, "%.0f%%", (float)lv_slider_get_value(slider));
-
-            lv_obj_add_event_cb(slider, [](lv_event_t* e) {
-                auto* s = lv_event_get_target(e);
-                float v01 = (float)lv_slider_get_value(s) / 100.0f;
-                app::dsp::BoostSettingsStore::instance().set_speech_boost(v01);
-                set_label_value((lv_obj_t*)lv_event_get_user_data(e), "%.0f%%", v01 * 100.0f);
-            }, LV_EVENT_VALUE_CHANGED, val);
+            lv_obj_t* note = lv_label_create(_content);
+            lv_label_set_text(note,
+                              "Tip: long-press the speaker % label to open this panel.\n"
+                              "Next: hook these values into the audio DSP pipeline and persist to NVS.");
+            lv_obj_set_style_text_opa(note, LV_OPA_70, 0);
+            lv_obj_set_style_text_font(note, &lv_font_montserrat_14, 0);
+            lv_obj_set_width(note, lv_pct(100));
         }
     }
 };
 
 static std::unique_ptr<BoostTuneWindow> s_boost_window;
 
-static void open_boost_tune_window()
+static void open_boost_tune_window(lv_obj_t* anchor_obj)
 {
-    if (!s_boost_window) {
-        s_boost_window = std::make_unique<BoostTuneWindow>(GetHAL()->getDisplay());
-        s_boost_window->init();
+    if (s_boost_window && s_boost_window->opened()) {
+        return;
     }
+
+    s_boost_window = std::make_unique<BoostTuneWindow>();
+    s_boost_window->init(lv_screen_active());
+
+    // If we have an anchor, animate from it (nice UX, avoids needing HAL display getters)
+    if (anchor_obj) {
+        lv_area_t coords;
+        lv_obj_get_coords(anchor_obj, &coords);
+
+        ui::Window::WindowKeyFrames& kf = s_boost_window->config().keyframes;
+        kf.close_pos.x  = coords.x1;
+        kf.close_pos.y  = coords.y1;
+        kf.close_size.x = coords.x2 - coords.x1;
+        kf.close_size.y = coords.y2 - coords.y1;
+    }
+
     s_boost_window->open();
+}
+
+static void label_long_pressed_cb(lv_event_t* e)
+{
+    open_boost_tune_window(lv_event_target_obj(e));
 }
 
 } // namespace
 
+namespace launcher_view {
 
+PanelSpeakerVolume::PanelSpeakerVolume(std::shared_ptr<launcher_view::View> launcher_view)
+    : _launcher_view(std::move(launcher_view))
+{
+}
 
 void PanelSpeakerVolume::init()
 {
-    _label_volume = std::make_unique<Label>(lv_screen_active());
-    _label_volume->align(LV_ALIGN_CENTER, _label_pos_x, _label_pos_y);
-    _label_volume->setTextFont(&lv_font_montserrat_24);
-    // Long-press the volume number to open the granular audio tuning UI
-    _label_volume->addEventCb(LV_EVENT_LONG_PRESSED, [](lv_event_t*) {
-        open_boost_tune_window();
-    });
-    _label_volume->setTextColor(lv_color_hex(0xFEFEFE));
-    _label_volume->setText(fmt::format("{}", GetHAL()->getSpeakerVolume()));
-
-    _btn_up = std::make_unique<Container>(lv_screen_active());
-    _btn_up->align(LV_ALIGN_CENTER, _btn_up_pos_x, _btn_up_pos_y);
-    _btn_up->setSize(81, 85);
-    _btn_up->setOpa(0);
-    _btn_up->onClick().connect([&]() {
-        // Animation
-        _label_y_anim.teleport(_label_pos_y - 8);
-        _label_y_anim = _label_pos_y;
-
-        // SFX
-        if (GetHAL()->getSpeakerVolume() >= 100) {
-            audio::play_tone_from_midi(_midi_top);
-            return;
+    // Speaker volume icon
+    _btn_volume = std::make_unique<lvgl::Container>(lv_screen_active());
+    _btn_volume->setSize(52, 52);
+    _btn_volume->align(LV_ALIGN_TOP_LEFT, 10, 54);
+    _btn_volume->setStyleRadius(100, LV_PART_MAIN);
+    _btn_volume->setStyleBgColor(lv_color_hex(0xffffff), LV_PART_MAIN);
+    _btn_volume->setStyleBgOpa(50, LV_PART_MAIN);
+    _btn_volume->setStyleBorderWidth(0, LV_PART_MAIN);
+    _btn_volume->onPressing([this](lv_event_t*) { _btn_volume->setStyleBgOpa(100, LV_PART_MAIN); });
+    _btn_volume->onClick([this](lv_event_t*) {
+        _btn_volume->setStyleBgOpa(50, LV_PART_MAIN);
+        _launcher_view->onNoticeMessage("SPK", 1000);
+        GetHAL()->audioSetSpeakerMute(false);
+        if (GetHAL()->audioGetSpeakerVolume() > 0) {
+            GetHAL()->audioSetSpeakerVolume(0);
+        } else {
+            GetHAL()->audioSetSpeakerVolume(0.6f);
         }
-
-        // Update volume
-        int target = GetHAL()->getSpeakerVolume();
-        target     = std::clamp(target + 20, 0, 100);
-        GetHAL()->setSpeakerVolume(target);
-        _label_volume->setText(fmt::format("{}", GetHAL()->getSpeakerVolume()));
-
-        audio::play_tone_from_midi(_midi_up);
     });
+    _btn_volume->onReleased([this](lv_event_t*) { _btn_volume->setStyleBgOpa(50, LV_PART_MAIN); });
 
-    _btn_down = std::make_unique<Container>(lv_screen_active());
-    _btn_down->align(LV_ALIGN_CENTER, _btn_down_pos_x, _btn_down_pos_y);
-    _btn_down->setSize(81, 85);
-    _btn_down->setOpa(0);
-    _btn_down->onClick().connect([&]() {
-        // Animation
-        _label_y_anim.teleport(_label_pos_y + 8);
-        _label_y_anim = _label_pos_y;
+    _img_volume = std::make_unique<lvgl::Image>(_btn_volume->get());
+    _img_volume->setSize(32, 32);
+    _img_volume->align(LV_ALIGN_CENTER, 0, 0);
+    _img_volume->setSrc("S:/app/assets/icon/volume_black_32.png");
 
-        // SFX
-        if (GetHAL()->getSpeakerVolume() <= 0) {
-            return;
+    // Volume label
+    _label_volume = std::make_unique<lvgl::Label>(lv_screen_active());
+    _label_volume->align(LV_ALIGN_TOP_LEFT, 18, 108);
+    _label_volume->setText("  0%");
+    _label_volume->setStyleTextFont(&lv_font_montserrat_24, LV_PART_MAIN);
+    _label_volume->setStyleTextColor(lv_color_hex(0x000000), LV_PART_MAIN);
+    _label_volume->setStyleTextOpa(60, LV_PART_MAIN);
+
+    // Ensure label is clickable for long-press (LVGL labels are not always clickable by default)
+    lv_obj_add_flag(_label_volume->get(), LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(_label_volume->get(), label_long_pressed_cb, LV_EVENT_LONG_PRESSED, nullptr);
+
+    _label_volume->onClick([this](lv_event_t*) {
+        GetHAL()->audioSetSpeakerMute(!GetHAL()->audioGetSpeakerMute());
+        if (GetHAL()->audioGetSpeakerMute()) {
+            _launcher_view->onNoticeMessage("SPK mute", 1000);
+        } else {
+            _launcher_view->onNoticeMessage("SPK on", 1000);
         }
-        audio::play_tone_from_midi(_midi_down);
-
-        // Update volume
-        int target = GetHAL()->getSpeakerVolume();
-        target     = std::clamp(target - 20, 0, 100);
-        GetHAL()->setSpeakerVolume(target);
-        _label_volume->setText(fmt::format("{}", GetHAL()->getSpeakerVolume()));
     });
 
-    _label_y_anim.easingOptions().duration = 0.2;
-    _label_y_anim.teleport(_label_pos_y);
+    // Headphone icon
+    _btn_headphone = std::make_unique<lvgl::Container>(lv_screen_active());
+    _btn_headphone->setSize(52, 52);
+    _btn_headphone->align(LV_ALIGN_TOP_RIGHT, -10, 54);
+    _btn_headphone->setStyleRadius(100, LV_PART_MAIN);
+    _btn_headphone->setStyleBgColor(lv_color_hex(0xffffff), LV_PART_MAIN);
+    _btn_headphone->setStyleBgOpa(50, LV_PART_MAIN);
+    _btn_headphone->setStyleBorderWidth(0, LV_PART_MAIN);
+    _btn_headphone->onPressing([this](lv_event_t*) { _btn_headphone->setStyleBgOpa(100, LV_PART_MAIN); });
+    _btn_headphone->onClick([this](lv_event_t*) {
+        _btn_headphone->setStyleBgOpa(50, LV_PART_MAIN);
+        _launcher_view->openApp("headphone_test");
+    });
+    _btn_headphone->onReleased([this](lv_event_t*) { _btn_headphone->setStyleBgOpa(50, LV_PART_MAIN); });
+
+    _img_headphone = std::make_unique<lvgl::Image>(_btn_headphone->get());
+    _img_headphone->setSize(32, 32);
+    _img_headphone->align(LV_ALIGN_CENTER, 0, 0);
+    _img_headphone->setSrc("S:/app/assets/icon/headphone_black_32.png");
+
+    // LED indicator on the headphone button
+    _cont_headphone_led = std::make_unique<lvgl::Container>(_btn_headphone->get());
+    _cont_headphone_led->setSize(10, 10);
+    _cont_headphone_led->align(LV_ALIGN_CENTER, 10, -13);
+    _cont_headphone_led->setStyleRadius(100, LV_PART_MAIN);
+    _cont_headphone_led->setStyleBorderWidth(0, LV_PART_MAIN);
+    _cont_headphone_led->setStyleBgOpa(100, LV_PART_MAIN);
+    _cont_headphone_led->setStyleBgColor(lv_color_hex(0xff0000), LV_PART_MAIN);
+
+    _cont_headphone_led_off = std::make_unique<lvgl::Container>(_btn_headphone->get());
+    _cont_headphone_led_off->setSize(10, 10);
+    _cont_headphone_led_off->align(LV_ALIGN_CENTER, 10, -13);
+    _cont_headphone_led_off->setStyleRadius(100, LV_PART_MAIN);
+    _cont_headphone_led_off->setStyleBorderWidth(0, LV_PART_MAIN);
+    _cont_headphone_led_off->setStyleBgOpa(10, LV_PART_MAIN);
+    _cont_headphone_led_off->setStyleBgColor(lv_color_hex(0x000000), LV_PART_MAIN);
 }
 
-void PanelSpeakerVolume::update(bool isStacked)
+void PanelSpeakerVolume::update()
 {
-    if (!_label_y_anim.done()) {
-        _label_volume->setY(_label_y_anim);
+    // Keep tune window alive & updated if opened
+    if (s_boost_window && s_boost_window->opened()) {
+        s_boost_window->update();
+    }
+
+    if (GetHAL()->audioGetSpeakerVolume() > 0) {
+        _img_volume->setSrc("S:/app/assets/icon/volume_black_32.png");
+    } else {
+        _img_volume->setSrc("S:/app/assets/icon/volume_mute_black_32.png");
+    }
+
+    if (GetHAL()->audioGetSpeakerMute()) {
+        _img_volume->setStyleImgRecolor(lv_color_hex(0xff0000), LV_PART_MAIN);
+        _img_volume->setStyleImgRecolorOpa(100, LV_PART_MAIN);
+    } else {
+        _img_volume->setStyleImgRecolorOpa(0, LV_PART_MAIN);
+    }
+
+    float vol = GetHAL()->audioGetSpeakerVolume() * 100;
+    if (GetHAL()->audioGetSpeakerMute()) {
+        vol = 0;
+    }
+    static float vol_last = -1;
+    if (vol != vol_last) {
+        vol_last = vol;
+        char buf[8];
+        snprintf(buf, sizeof(buf), "%3.0f%%", vol);
+        _label_volume->setText(buf);
+    }
+
+    if (GetHAL()->audioHeadphoneState()) {
+        _cont_headphone_led->show();
+        _cont_headphone_led_off->hide();
+    } else {
+        _cont_headphone_led->hide();
+        _cont_headphone_led_off->show();
     }
 }
+
+} // namespace launcher_view
