@@ -27,6 +27,8 @@ static constexpr int16_t kLabelToButtonDelta = 72;
 static constexpr int16_t kBtnUpPosY          = 312;
 static constexpr int16_t kBtnDownPosY        = 312;
 static constexpr int16_t kLabelPosY          = kBtnDownPosY - kLabelToButtonDelta;
+static constexpr int16_t kLabelHitAreaWidth  = 180;
+static constexpr int16_t kLabelHitAreaHeight = 72;
 
 namespace {
 
@@ -279,15 +281,18 @@ static void update_vol(int offset, Label* label_vol)
 
 void PanelSpeakerVolume::init()
 {
-    _label_volume = std::make_unique<Label>(lv_screen_active());
-    _label_volume->align(LV_ALIGN_CENTER, kLabelPosX, kLabelPosY);
+    _label_volume_container = std::make_unique<Container>(lv_screen_active());
+    _label_volume_container->align(LV_ALIGN_CENTER, kLabelPosX, kLabelPosY);
+    _label_volume_container->setSize(kLabelHitAreaWidth, kLabelHitAreaHeight);
+    _label_volume_container->setOpa(0);
+    _label_volume_container->addFlag(LV_OBJ_FLAG_CLICKABLE);
+    _label_volume_container->addEventCb(&on_volume_label_long_pressed, LV_EVENT_LONG_PRESSED);
+
+    _label_volume = std::make_unique<Label>(_label_volume_container->get());
+    _label_volume->align(LV_ALIGN_CENTER, 0, 0);
     _label_volume->setTextFont(&lv_font_montserrat_24);
     _label_volume->setTextColor(lv_color_hex(0xFEFEFE));
     _label_volume->setText(get_vol_str());
-    _label_volume->addFlag(LV_OBJ_FLAG_CLICKABLE);
-
-    // Long-press the volume label to open the audio tuning window.
-    _label_volume->addEventCb(&on_volume_label_long_pressed, LV_EVENT_LONG_PRESSED);
 
     _btn_up = std::make_unique<Container>(lv_screen_active());
     _btn_up->align(LV_ALIGN_CENTER, kBtnUpPosX, kBtnUpPosY);
@@ -322,7 +327,9 @@ void PanelSpeakerVolume::update(bool isStacked)
     }
 
     if (!_label_y_anim.done()) {
-        _label_volume->setY(_label_y_anim);
+        if (_label_volume_container) {
+            _label_volume_container->setY(_label_y_anim);
+        }
     }
 }
 
