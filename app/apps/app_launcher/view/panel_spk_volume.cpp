@@ -3,7 +3,6 @@
 #include <apps/utils/ui/window.h>
 
 #include <esp_log.h>
-//#include <fmt/core.h>
 #include <hal/hal.h>
 #include <lvgl.h>
 #include <mooncake_log.h>
@@ -22,11 +21,11 @@ namespace launcher_view {
 static const char* TAG = "boost_tune";
 
 static constexpr int16_t kLabelPosX   = 591;
-static constexpr int16_t kLabelPosY   = 198;
+static constexpr int16_t kLabelPosY   = 302;
 static constexpr int16_t kBtnUpPosX   = 499;
-static constexpr int16_t kBtnUpPosY   = 270;
+static constexpr int16_t kBtnUpPosY   = 374;
 static constexpr int16_t kBtnDownPosX = 593;
-static constexpr int16_t kBtnDownPosY = 270;
+static constexpr int16_t kBtnDownPosY = 374;
 
 namespace {
 
@@ -284,6 +283,7 @@ void PanelSpeakerVolume::init()
     _label_volume->setTextFont(&lv_font_montserrat_24);
     _label_volume->setTextColor(lv_color_hex(0xFEFEFE));
     _label_volume->setText(get_vol_str());
+    _label_volume->addFlag(LV_OBJ_FLAG_CLICKABLE);
 
     // Long-press the volume label to open the audio tuning window.
     _label_volume->addEventCb(&on_volume_label_long_pressed, LV_EVENT_LONG_PRESSED);
