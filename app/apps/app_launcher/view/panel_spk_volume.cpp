@@ -20,12 +20,13 @@ namespace launcher_view {
 
 static const char* TAG = "boost_tune";
 
-static constexpr int16_t kLabelPosX   = 591;
-static constexpr int16_t kLabelPosY   = 302;
-static constexpr int16_t kBtnUpPosX   = 499;
-static constexpr int16_t kBtnUpPosY   = 374;
-static constexpr int16_t kBtnDownPosX = 593;
-static constexpr int16_t kBtnDownPosY = 374;
+static constexpr int16_t kLabelPosX          = 591;
+static constexpr int16_t kBtnUpPosX          = 499;
+static constexpr int16_t kBtnDownPosX        = 593;
+static constexpr int16_t kLabelToButtonDelta = 72;
+static constexpr int16_t kBtnUpPosY          = 312;
+static constexpr int16_t kBtnDownPosY        = 312;
+static constexpr int16_t kLabelPosY          = kBtnDownPosY - kLabelToButtonDelta;
 
 namespace {
 
