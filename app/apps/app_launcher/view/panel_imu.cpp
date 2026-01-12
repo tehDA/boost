@@ -537,6 +537,11 @@ struct ShipWireframe {
     }
 };
 
+void ShipWireframeDeleter::operator()(ShipWireframe* wireframe) const
+{
+    delete wireframe;
+}
+
 } // namespace launcher_view
 
 namespace {
@@ -640,7 +645,7 @@ void PanelImu::init()
     _label_attitude->setTextColor(lv_color_hex(0x4FD88E));
     _label_attitude->setText("ATTITUDE");
 
-    _ship_wireframe = std::make_unique<ShipWireframe>();
+    _ship_wireframe = std::unique_ptr<ShipWireframe, ShipWireframeDeleter>(new ShipWireframe());
     _ship_wireframe->init(_wireframe->get(), 170, 96, 5, 16, lv_color_hex(_wireframe_color), 2);
 
     _wireframe->onClick().connect([&]() {

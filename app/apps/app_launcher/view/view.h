@@ -14,6 +14,9 @@
 
 namespace launcher_view {
 struct ShipWireframe;
+struct ShipWireframeDeleter {
+    void operator()(ShipWireframe* wireframe) const;
+};
 
 /**
  * @brief
@@ -124,7 +127,7 @@ private:
     uint32_t _time_count = 0;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _wireframe;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Label> _label_attitude;
-    std::unique_ptr<ShipWireframe> _ship_wireframe;
+    std::unique_ptr<ShipWireframe, ShipWireframeDeleter> _ship_wireframe;
     std::unique_ptr<ui::Window> _window;
 };
 
