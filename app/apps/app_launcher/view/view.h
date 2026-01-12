@@ -60,6 +60,7 @@ public:
     void update(bool isStacked) override;
 
 private:
+    std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _label_brightness_container;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Label> _label_brightness;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _btn_up;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _btn_down;
