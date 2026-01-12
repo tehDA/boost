@@ -29,6 +29,7 @@ static constexpr int16_t kBtnDownPosY        = 312;
 static constexpr int16_t kLabelPosY          = kBtnDownPosY - kLabelToButtonDelta;
 static constexpr int16_t kLabelHitAreaWidth  = 180;
 static constexpr int16_t kLabelHitAreaHeight = 90;
+static constexpr int16_t kLabelTagOffsetY    = -52;
 
 namespace {
 
@@ -242,6 +243,31 @@ static void stylize_trek_button(lv_obj_t* obj, const char* glyph, lv_color_t acc
     lv_obj_align(label, LV_ALIGN_CENTER, 0, 6);
 }
 
+static void stylize_trek_tag(lv_obj_t* obj, const char* text, lv_color_t accent)
+{
+    lv_obj_set_style_bg_color(obj, lv_color_hex(0x0E2333), 0);
+    lv_obj_set_style_bg_grad_color(obj, lv_color_hex(0x1E465C), 0);
+    lv_obj_set_style_bg_grad_dir(obj, LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_90, 0);
+    lv_obj_set_style_border_width(obj, 2, 0);
+    lv_obj_set_style_border_color(obj, accent, 0);
+    lv_obj_set_style_radius(obj, 14, 0);
+
+    lv_obj_t* accent_bar = lv_obj_create(obj);
+    lv_obj_set_size(accent_bar, 48, 6);
+    lv_obj_align(accent_bar, LV_ALIGN_TOP_LEFT, 12, 6);
+    lv_obj_set_style_bg_color(accent_bar, accent, 0);
+    lv_obj_set_style_bg_opa(accent_bar, LV_OPA_90, 0);
+    lv_obj_set_style_radius(accent_bar, 3, 0);
+    lv_obj_set_style_border_width(accent_bar, 0, 0);
+
+    lv_obj_t* label = lv_label_create(obj);
+    lv_label_set_text(label, text);
+    lv_obj_set_style_text_color(label, accent, 0);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+    lv_obj_align(label, LV_ALIGN_LEFT_MID, 70, 2);
+}
+
 } // namespace
 
 static std::string get_vol_str()
@@ -273,6 +299,11 @@ static void update_vol(int offset, Label* label_vol)
 void PanelSpeakerVolume::init()
 {
     auto settings = app::dsp::BoostSettingsStore::instance().get();
+
+    auto* volume_tag = lv_obj_create(lv_screen_active());
+    lv_obj_set_size(volume_tag, 160, 40);
+    lv_obj_align(volume_tag, LV_ALIGN_CENTER, kLabelPosX, kLabelPosY + kLabelTagOffsetY);
+    stylize_trek_tag(volume_tag, "AUDIO VOLUME", lv_color_hex(0x75F0FF));
 
     _label_volume_container = std::make_unique<Container>(lv_screen_active());
     _label_volume_container->align(LV_ALIGN_CENTER, kLabelPosX, kLabelPosY);
@@ -310,7 +341,7 @@ void PanelSpeakerVolume::init()
 
     _panel_tuning = lv_obj_create(lv_screen_active());
     lv_obj_set_size(_panel_tuning, 320, 600);
-    lv_obj_set_pos(_panel_tuning, 1320, 80);
+    lv_obj_align(_panel_tuning, LV_ALIGN_TOP_RIGHT, -28, 80);
     lv_obj_set_style_bg_color(_panel_tuning, lv_color_hex(0x0C1A26), 0);
     lv_obj_set_style_bg_opa(_panel_tuning, LV_OPA_90, 0);
     lv_obj_set_style_border_color(_panel_tuning, lv_color_hex(0x2E5166), 0);
@@ -486,10 +517,7 @@ void PanelSpeakerVolume::update(bool isStacked)
 
 void PanelSpeakerVolume::openBoostTune(lv_obj_t* parent)
 {
-    if (!parent) {
-        parent = lv_screen_active();
-    }
-    lv_obj_scroll_to_x(parent, 1200, LV_ANIM_ON);
+    (void)parent;
 }
 
 } // namespace launcher_view

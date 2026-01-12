@@ -18,12 +18,15 @@ using namespace smooth_ui_toolkit::lvgl_cpp;
 
 static const std::string _tag = "panel-lcd-bl";
 
-static constexpr int16_t _label_pos_x    = 591;
-static constexpr int16_t _label_pos_y    = 94;
-static constexpr int16_t _btn_up_pos_x   = 499;
-static constexpr int16_t _btn_up_pos_y   = 166;
-static constexpr int16_t _btn_down_pos_x = 593;
-static constexpr int16_t _btn_down_pos_y = 166;
+static constexpr int16_t _label_pos_x          = 591;
+static constexpr int16_t _label_pos_y          = 94;
+static constexpr int16_t _label_hit_area_width  = 180;
+static constexpr int16_t _label_hit_area_height = 90;
+static constexpr int16_t _label_tag_offset_y    = -52;
+static constexpr int16_t _btn_up_pos_x         = 499;
+static constexpr int16_t _btn_up_pos_y         = 166;
+static constexpr int16_t _btn_down_pos_x       = 593;
+static constexpr int16_t _btn_down_pos_y       = 166;
 
 static constexpr int16_t _midi_up     = 64 + 24;
 static constexpr int16_t _midi_down   = 60 + 24;
@@ -60,13 +63,49 @@ static void stylize_trek_button(lv_obj_t* obj, const char* glyph, lv_color_t acc
     lv_obj_align(label, LV_ALIGN_CENTER, 0, 6);
 }
 
+static void stylize_trek_tag(lv_obj_t* obj, const char* text, lv_color_t accent)
+{
+    lv_obj_set_style_bg_color(obj, lv_color_hex(0x0E2333), 0);
+    lv_obj_set_style_bg_grad_color(obj, lv_color_hex(0x1E465C), 0);
+    lv_obj_set_style_bg_grad_dir(obj, LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_90, 0);
+    lv_obj_set_style_border_width(obj, 2, 0);
+    lv_obj_set_style_border_color(obj, accent, 0);
+    lv_obj_set_style_radius(obj, 14, 0);
+
+    lv_obj_t* accent_bar = lv_obj_create(obj);
+    lv_obj_set_size(accent_bar, 48, 6);
+    lv_obj_align(accent_bar, LV_ALIGN_TOP_LEFT, 12, 6);
+    lv_obj_set_style_bg_color(accent_bar, accent, 0);
+    lv_obj_set_style_bg_opa(accent_bar, LV_OPA_90, 0);
+    lv_obj_set_style_radius(accent_bar, 3, 0);
+    lv_obj_set_style_border_width(accent_bar, 0, 0);
+
+    lv_obj_t* label = lv_label_create(obj);
+    lv_label_set_text(label, text);
+    lv_obj_set_style_text_color(label, accent, 0);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+    lv_obj_align(label, LV_ALIGN_LEFT_MID, 70, 2);
+}
+
 } // namespace
 
 void PanelLcdBacklight::init()
 {
-    _label_brightness = std::make_unique<Label>(lv_screen_active());
-    _label_brightness->align(LV_ALIGN_CENTER, _label_pos_x, _label_pos_y);
-    _label_brightness->setTextFont(&lv_font_montserrat_36);
+    auto* backlight_tag = lv_obj_create(lv_screen_active());
+    lv_obj_set_size(backlight_tag, 160, 40);
+    lv_obj_align(backlight_tag, LV_ALIGN_CENTER, _label_pos_x, _label_pos_y + _label_tag_offset_y);
+    stylize_trek_tag(backlight_tag, "LCD BACKLIGHT", lv_color_hex(0xF2A15F));
+
+    _label_brightness_container = std::make_unique<Container>(lv_screen_active());
+    _label_brightness_container->align(LV_ALIGN_CENTER, _label_pos_x, _label_pos_y);
+    _label_brightness_container->setSize(_label_hit_area_width, _label_hit_area_height);
+    lv_obj_set_style_bg_opa(_label_brightness_container->get(), LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(_label_brightness_container->get(), 0, 0);
+
+    _label_brightness = std::make_unique<Label>(_label_brightness_container->get());
+    _label_brightness->align(LV_ALIGN_CENTER, 0, 0);
+    _label_brightness->setTextFont(&lv_font_montserrat_24);
     _label_brightness->setTextColor(lv_color_hex(0xFEFEFE));
     _label_brightness->setText(fmt::format("{}", GetHAL()->getDisplayBrightness()));
 
@@ -123,6 +162,8 @@ void PanelLcdBacklight::init()
 void PanelLcdBacklight::update(bool isStacked)
 {
     if (!_label_y_anim.done()) {
-        _label_brightness->setY(_label_y_anim);
+        if (_label_brightness_container) {
+            _label_brightness_container->setY(_label_y_anim);
+        }
     }
 }

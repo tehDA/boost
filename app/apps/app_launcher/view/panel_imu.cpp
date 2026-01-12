@@ -498,8 +498,8 @@ struct ShipWireframe {
             return;
         }
 
-        float roll = roll_deg / kRadToDeg;
-        float pitch = pitch_deg / kRadToDeg;
+        float roll = pitch_deg / kRadToDeg;
+        float pitch = roll_deg / kRadToDeg;
         float cos_r = std::cos(roll);
         float sin_r = std::sin(roll);
         float cos_p = std::cos(pitch);
