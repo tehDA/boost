@@ -621,6 +621,8 @@ private:
 
 } // namespace
 
+launcher_view::PanelImu::~PanelImu() = default;
+
 void PanelImu::init()
 {
     _wireframe = std::make_unique<Container>(lv_screen_active());

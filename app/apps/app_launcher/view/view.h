@@ -118,6 +118,7 @@ class PanelImu : public PanelBase {
 public:
     void init() override;
     void update(bool isStacked) override;
+    ~PanelImu() override;
 
 private:
     uint32_t _time_count = 0;
