@@ -30,9 +30,9 @@ void LauncherView::init()
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x05070B), 0);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
     lv_obj_set_size(scr, 1680, 720);
-    lv_obj_add_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_scroll_dir(scr, LV_DIR_HOR);
-    lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_ACTIVE);
+    lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(scr, LV_DIR_NONE);
+    lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_OFF);
 
     lv_obj_t* lcars_left_rail = lv_obj_create(scr);
     lv_obj_set_size(lcars_left_rail, 12, 720);
@@ -90,6 +90,7 @@ void LauncherView::init()
 
     // Install panels
     _panels.push_back(std::make_unique<PanelRtc>());
+    _panels.push_back(std::make_unique<PanelLcdBacklight>());
     _panels.push_back(std::make_unique<PanelImu>());
     _panels.push_back(std::make_unique<PanelSpeakerVolume>());
 
