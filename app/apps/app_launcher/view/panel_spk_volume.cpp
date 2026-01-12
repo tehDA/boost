@@ -246,4 +246,12 @@ void PanelSpeakerVolume::update(bool isStacked)
     }
 }
 
+void PanelSpeakerVolume::openBoostTune(lv_obj_t* parent)
+{
+    if (!parent) {
+        parent = lv_screen_active();
+    }
+    lv_obj_scroll_to_x(parent, 1200, LV_ANIM_ON);
+}
+
 } // namespace launcher_view
