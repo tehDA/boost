@@ -7,10 +7,8 @@
 #include <lvgl.h>
 #include <hal/hal.h>
 #include <mooncake_log.h>
-#include <assets/assets.h>
 #include <smooth_ui_toolkit.h>
 #include <smooth_lvgl.h>
-#include <apps/utils/audio/audio.h>
 
 using namespace launcher_view;
 using namespace smooth_ui_toolkit;
@@ -27,50 +25,44 @@ void LauncherView::init()
 
     LvglLockGuard lock;
 
-    // Base screen
-    lv_obj_remove_flag(lv_screen_active(), LV_OBJ_FLAG_SCROLLABLE);
+    // Base screen: dark, high-contrast LCARS-style canvas
+    lv_obj_t* scr = lv_screen_active();
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0x05070B), 0);
+    lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
+    lv_obj_set_size(scr, 1680, 720);
+    lv_obj_add_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(scr, LV_DIR_HOR);
+    lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_ACTIVE);
 
-    // Background image
-    _img_bg = std::make_unique<Image>(lv_screen_active());
-    _img_bg->setAlign(LV_ALIGN_CENTER);
-    _img_bg->setSrc(&launcher_bg);
-    _img_bg->setOpa(160);
+    lv_obj_t* lcars_header = lv_obj_create(scr);
+    lv_obj_set_size(lcars_header, 640, 36);
+    lv_obj_align(lcars_header, LV_ALIGN_TOP_LEFT, 18, 18);
+    lv_obj_set_style_bg_color(lcars_header, lv_color_hex(0x203A4F), 0);
+    lv_obj_set_style_bg_opa(lcars_header, LV_OPA_90, 0);
+    lv_obj_set_style_border_width(lcars_header, 0, 0);
+    lv_obj_clear_flag(lcars_header, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Starship-style overlay to calm background noise
-    _panel_overlay = std::make_unique<Container>(lv_screen_active());
-    _panel_overlay->align(LV_ALIGN_CENTER, 0, 0);
-    _panel_overlay->setSize(1280, 720);
-    lv_obj_set_style_bg_color(_panel_overlay->get(), lv_color_hex(0x061623), 0);
-    lv_obj_set_style_bg_opa(_panel_overlay->get(), LV_OPA_40, 0);
-    lv_obj_set_style_border_width(_panel_overlay->get(), 0, 0);
-    lv_obj_clear_flag(_panel_overlay->get(), LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_clear_flag(_panel_overlay->get(), LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_t* lcars_title = lv_label_create(lcars_header);
+    lv_label_set_text(lcars_title, "BOOST LCARS SYSTEMS");
+    lv_obj_set_style_text_color(lcars_title, lv_color_hex(0xA7F0FF), 0);
+    lv_obj_set_style_text_font(lcars_title, &lv_font_montserrat_18, 0);
+    lv_obj_align(lcars_title, LV_ALIGN_LEFT_MID, 12, 0);
 
-    lv_obj_t* lcars_left = lv_obj_create(_panel_overlay->get());
-    lv_obj_set_size(lcars_left, 140, 28);
-    lv_obj_align(lcars_left, LV_ALIGN_TOP_LEFT, 18, 18);
-    lv_obj_set_style_bg_color(lcars_left, lv_color_hex(0x1E5B6B), 0);
-    lv_obj_set_style_bg_opa(lcars_left, LV_OPA_70, 0);
-    lv_obj_set_style_border_width(lcars_left, 0, 0);
-    lv_obj_clear_flag(lcars_left, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_t* lcars_pill = lv_obj_create(scr);
+    lv_obj_set_size(lcars_pill, 220, 18);
+    lv_obj_align(lcars_pill, LV_ALIGN_TOP_RIGHT, -22, 26);
+    lv_obj_set_style_bg_color(lcars_pill, lv_color_hex(0x133044), 0);
+    lv_obj_set_style_bg_opa(lcars_pill, LV_OPA_90, 0);
+    lv_obj_set_style_border_width(lcars_pill, 0, 0);
+    lv_obj_clear_flag(lcars_pill, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t* lcars_right = lv_obj_create(_panel_overlay->get());
-    lv_obj_set_size(lcars_right, 220, 18);
-    lv_obj_align(lcars_right, LV_ALIGN_TOP_RIGHT, -18, 26);
-    lv_obj_set_style_bg_color(lcars_right, lv_color_hex(0x12384B), 0);
-    lv_obj_set_style_bg_opa(lcars_right, LV_OPA_70, 0);
-    lv_obj_set_style_border_width(lcars_right, 0, 0);
-    lv_obj_clear_flag(lcars_right, LV_OBJ_FLAG_SCROLLABLE);
-
-    // ESP32P4 chip hotspot for audio tuning menu
-    _btn_esp32p4 = std::make_unique<Container>(lv_screen_active());
-    _btn_esp32p4->align(LV_ALIGN_CENTER, -10, 140);
-    _btn_esp32p4->setSize(240, 170);
-    _btn_esp32p4->setOpa(0);
-    _btn_esp32p4->addFlag(LV_OBJ_FLAG_CLICKABLE);
-    _btn_esp32p4->onClick().connect([&]() {
-        PanelSpeakerVolume::openBoostTune(lv_screen_active());
-    });
+    lv_obj_t* lcars_accent = lv_obj_create(scr);
+    lv_obj_set_size(lcars_accent, 90, 6);
+    lv_obj_align(lcars_accent, LV_ALIGN_TOP_LEFT, 18, 60);
+    lv_obj_set_style_bg_color(lcars_accent, lv_color_hex(0xE58C6B), 0);
+    lv_obj_set_style_bg_opa(lcars_accent, LV_OPA_90, 0);
+    lv_obj_set_style_border_width(lcars_accent, 0, 0);
+    lv_obj_clear_flag(lcars_accent, LV_OBJ_FLAG_SCROLLABLE);
 
     // Install panels
     _panels.push_back(std::make_unique<PanelRtc>());
