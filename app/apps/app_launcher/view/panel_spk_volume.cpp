@@ -29,7 +29,7 @@ static constexpr int16_t kBtnDownPosY        = 312;
 static constexpr int16_t kLabelPosY          = kBtnDownPosY - kLabelToButtonDelta;
 static constexpr int16_t kLabelHitAreaWidth  = 180;
 static constexpr int16_t kLabelHitAreaHeight = 90;
-static constexpr int16_t kLabelTagOffsetY    = -66;
+static constexpr int16_t kLabelTagOffsetY    = -52;
 
 namespace {
 
@@ -301,7 +301,7 @@ void PanelSpeakerVolume::init()
     auto settings = app::dsp::BoostSettingsStore::instance().get();
 
     auto* volume_tag = lv_obj_create(lv_screen_active());
-    lv_obj_set_size(volume_tag, 180, 44);
+    lv_obj_set_size(volume_tag, 160, 40);
     lv_obj_align(volume_tag, LV_ALIGN_CENTER, kLabelPosX, kLabelPosY + kLabelTagOffsetY);
     stylize_trek_tag(volume_tag, "AUDIO VOLUME", lv_color_hex(0x75F0FF));
 
@@ -341,7 +341,7 @@ void PanelSpeakerVolume::init()
 
     _panel_tuning = lv_obj_create(lv_screen_active());
     lv_obj_set_size(_panel_tuning, 320, 600);
-    lv_obj_set_pos(_panel_tuning, 1320, 80);
+    lv_obj_align(_panel_tuning, LV_ALIGN_TOP_RIGHT, -28, 80);
     lv_obj_set_style_bg_color(_panel_tuning, lv_color_hex(0x0C1A26), 0);
     lv_obj_set_style_bg_opa(_panel_tuning, LV_OPA_90, 0);
     lv_obj_set_style_border_color(_panel_tuning, lv_color_hex(0x2E5166), 0);

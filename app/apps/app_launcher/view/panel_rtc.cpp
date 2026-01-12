@@ -57,9 +57,8 @@ public:
                 _calendar->align(LV_ALIGN_CENTER, 0, -20);
                 _calendar->setBorderWidth(0, LV_PART_MAIN);
                 _calendar->setBgColor(lv_color_hex(config.bgColor));
-                int current_year = local_time->tm_year + 1900;
-                int start_year = current_year - 5;
-                int end_year = current_year + 25;
+                int start_year = 1947;
+                int end_year = 2047;
                 _year_list.clear();
                 for (int year = start_year; year <= end_year; ++year) {
                     if (!_year_list.empty()) {

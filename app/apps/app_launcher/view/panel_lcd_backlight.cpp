@@ -20,9 +20,9 @@ static const std::string _tag = "panel-lcd-bl";
 
 static constexpr int16_t _label_pos_x          = 591;
 static constexpr int16_t _label_pos_y          = 94;
-static constexpr int16_t _label_hit_area_width = 180;
+static constexpr int16_t _label_hit_area_width  = 180;
 static constexpr int16_t _label_hit_area_height = 90;
-static constexpr int16_t _label_tag_offset_y   = -66;
+static constexpr int16_t _label_tag_offset_y    = -52;
 static constexpr int16_t _btn_up_pos_x         = 499;
 static constexpr int16_t _btn_up_pos_y         = 166;
 static constexpr int16_t _btn_down_pos_x       = 593;
@@ -93,7 +93,7 @@ static void stylize_trek_tag(lv_obj_t* obj, const char* text, lv_color_t accent)
 void PanelLcdBacklight::init()
 {
     auto* backlight_tag = lv_obj_create(lv_screen_active());
-    lv_obj_set_size(backlight_tag, 180, 44);
+    lv_obj_set_size(backlight_tag, 160, 40);
     lv_obj_align(backlight_tag, LV_ALIGN_CENTER, _label_pos_x, _label_pos_y + _label_tag_offset_y);
     stylize_trek_tag(backlight_tag, "LCD BACKLIGHT", lv_color_hex(0xF2A15F));
 
