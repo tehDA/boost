@@ -41,6 +41,7 @@ private:
     uint32_t _time_count = 0;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Label> _label_time;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Label> _label_date;
+    std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Label> _label_hint;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _btn_rtc_setting;
     std::unique_ptr<ui::Window> _window;
 };
@@ -119,13 +120,12 @@ public:
 
 private:
     uint32_t _time_count = 0;
-    std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Label> _label_accel_x;
-    std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Label> _label_accel_y;
-    std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Label> _label_accel_z;
-    std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _accel_dot;
-    smooth_ui_toolkit::AnimateValue _anim_x;
-    smooth_ui_toolkit::AnimateValue _anim_y;
-    smooth_ui_toolkit::AnimateValue _anim_size;
+    std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _wireframe;
+    std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Label> _label_attitude;
+    std::vector<lv_obj_t*> _wire_lines;
+    std::vector<std::vector<lv_point_precise_t>> _wire_points;
+    std::vector<std::vector<lv_point_precise_t>> _wire_base_points;
+    std::unique_ptr<ui::Window> _window;
 };
 
 /**
