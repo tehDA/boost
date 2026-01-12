@@ -28,7 +28,7 @@ static constexpr int16_t kBtnUpPosY          = 312;
 static constexpr int16_t kBtnDownPosY        = 312;
 static constexpr int16_t kLabelPosY          = kBtnDownPosY - kLabelToButtonDelta;
 static constexpr int16_t kLabelHitAreaWidth  = 180;
-static constexpr int16_t kLabelHitAreaHeight = 72;
+static constexpr int16_t kLabelHitAreaHeight = 90;
 
 namespace {
 
@@ -284,7 +284,8 @@ void PanelSpeakerVolume::init()
     _label_volume_container = std::make_unique<Container>(lv_screen_active());
     _label_volume_container->align(LV_ALIGN_CENTER, kLabelPosX, kLabelPosY);
     _label_volume_container->setSize(kLabelHitAreaWidth, kLabelHitAreaHeight);
-    _label_volume_container->setOpa(0);
+    lv_obj_set_style_bg_opa(_label_volume_container->get(), LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(_label_volume_container->get(), 0, 0);
     _label_volume_container->addFlag(LV_OBJ_FLAG_CLICKABLE);
     _label_volume_container->addEventCb(&on_volume_label_long_pressed, LV_EVENT_LONG_PRESSED);
 
