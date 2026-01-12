@@ -340,8 +340,8 @@ void PanelSpeakerVolume::init()
     });
 
     _panel_tuning = lv_obj_create(lv_screen_active());
-    lv_obj_set_size(_panel_tuning, 320, 600);
-    lv_obj_align(_panel_tuning, LV_ALIGN_TOP_RIGHT, -28, 80);
+    lv_obj_set_size(_panel_tuning, 300, 360);
+    lv_obj_align(_panel_tuning, LV_ALIGN_TOP_RIGHT, -24, 70);
     lv_obj_set_style_bg_color(_panel_tuning, lv_color_hex(0x0C1A26), 0);
     lv_obj_set_style_bg_opa(_panel_tuning, LV_OPA_90, 0);
     lv_obj_set_style_border_color(_panel_tuning, lv_color_hex(0x2E5166), 0);
