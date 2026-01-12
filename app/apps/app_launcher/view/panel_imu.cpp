@@ -520,9 +520,12 @@ struct ShipWireframe {
             float y2 = (x1 * sin_r) + (y1 * cos_r);
             float z2 = z1;
 
+            float x3 = -y2;
+            float y3 = x2;
+
             float perspective = depth / (depth + z2 + depth * 0.15f);
-            float px = origin_x + (x2 * scale * perspective);
-            float py = origin_y - (y2 * scale * perspective);
+            float px = origin_x + (x3 * scale * perspective);
+            float py = origin_y - (y3 * scale * perspective);
 
             projected_points[i].x = static_cast<lv_coord_t>(px);
             projected_points[i].y = static_cast<lv_coord_t>(py);
