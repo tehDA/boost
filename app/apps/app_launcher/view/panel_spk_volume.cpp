@@ -228,6 +228,11 @@ void PanelSpeakerVolume::init()
     _label_y_anim.teleport(kLabelPosY);
 }
 
+void PanelSpeakerVolume::openBoostTune(lv_obj_t* parent)
+{
+    open_boost_tune_window(parent);
+}
+
 void PanelSpeakerVolume::update(bool isStacked)
 {
     if (_label_volume) {

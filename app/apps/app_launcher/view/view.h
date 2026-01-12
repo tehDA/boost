@@ -69,6 +69,7 @@ class PanelSpeakerVolume : public PanelBase {
 public:
     void init() override;
     void update(bool isStacked) override;
+    static void openBoostTune(lv_obj_t* parent);
 
 private:
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _label_volume_container;
