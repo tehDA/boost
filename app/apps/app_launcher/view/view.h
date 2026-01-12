@@ -125,6 +125,8 @@ private:
     std::vector<lv_obj_t*> _wire_lines;
     std::vector<std::vector<lv_point_precise_t>> _wire_points;
     std::vector<std::vector<lv_point_precise_t>> _wire_base_points;
+    float _wire_center_x = 0.0f;
+    float _wire_center_y = 0.0f;
     std::unique_ptr<ui::Window> _window;
 };
 
