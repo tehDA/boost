@@ -5,6 +5,7 @@
  */
 #include "view.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <lvgl.h>
@@ -30,73 +31,426 @@ namespace {
 
 constexpr float kRadToDeg = 57.2957795f;
 
-struct WireframeBounds {
+struct Vec3 {
+    float x;
+    float y;
+    float z;
+};
+
+struct Edge {
+    uint16_t a;
+    uint16_t b;
+};
+
+static constexpr Vec3 kShipVertices[] = {
+    {0.650832f, 0.271315f, -1.000000f},
+    {1.240349f, -0.000333f, 1.000000f},
+    {0.650832f, 0.315481f, -1.000000f},
+    {1.240348f, 0.180615f, 0.560630f},
+    {0.805783f, -0.000334f, 4.284117f},
+    {0.805782f, 0.180615f, 4.284118f},
+    {3.119281f, -0.942804f, 2.322021f},
+    {3.119280f, -0.761855f, 1.882651f},
+    {0.650832f, 0.315481f, -1.000000f},
+    {1.240348f, 0.180615f, 0.560630f},
+    {3.119280f, -0.761855f, 1.882651f},
+    {0.507604f, 0.512063f, -1.000000f},
+    {0.556329f, 0.986010f, 1.000001f},
+    {0.218978f, 0.452316f, 3.753458f},
+    {1.240349f, -0.000333f, -0.372761f},
+    {1.240349f, 0.180615f, -0.372760f},
+    {3.119281f, -0.942804f, 0.949260f},
+    {3.119281f, -0.761855f, 0.949260f},
+    {1.240349f, 0.180615f, -0.372760f},
+    {3.119281f, -0.761855f, 0.949260f},
+    {0.653542f, 0.986010f, -0.372760f},
+    {3.457423f, -0.942803f, 2.322021f},
+    {3.457423f, -0.761854f, 1.882651f},
+    {3.457423f, -0.942803f, 0.949260f},
+    {3.457423f, -0.761854f, 0.949261f},
+    {3.119281f, -0.942804f, 2.322021f},
+    {3.119280f, -0.761855f, 2.321895f},
+    {3.457423f, -0.942803f, 2.322021f},
+    {3.457423f, -0.761854f, 2.321895f},
+    {3.182715f, -0.908858f, 2.321997f},
+    {3.182715f, -0.795800f, 2.321919f},
+    {3.393988f, -0.908857f, 2.321997f},
+    {3.393988f, -0.795800f, 2.321919f},
+    {3.182715f, -0.907922f, 3.673004f},
+    {3.182715f, -0.794865f, 3.672926f},
+    {3.393988f, -0.907922f, 3.673004f},
+    {3.393988f, -0.794865f, 3.672926f},
+    {3.242466f, -0.875948f, 3.672982f},
+    {3.242466f, -0.826839f, 3.672948f},
+    {3.334237f, -0.875948f, 3.672982f},
+    {3.334237f, -0.826839f, 3.672948f},
+    {3.242466f, -0.875760f, 3.945883f},
+    {3.242466f, -0.826651f, 3.945849f},
+    {3.334237f, -0.875760f, 3.945883f},
+    {3.334237f, -0.826651f, 3.945849f},
+    {0.960107f, 0.565249f, 0.770461f},
+    {0.525541f, 0.310371f, 4.030690f},
+    {0.582431f, 0.409363f, -1.000000f},
+    {0.960107f, 0.565249f, -0.372760f},
+    {0.845504f, 0.498033f, 1.630241f},
+    {0.538940f, 0.845265f, 1.726136f},
+    {1.125746f, 0.180615f, 1.542580f},
+    {1.125746f, -0.000333f, 1.866080f},
+    {-0.650832f, 0.271315f, -1.000000f},
+    {-1.240349f, -0.000333f, 1.000000f},
+    {0.000000f, -0.000333f, 1.000000f},
+    {0.000000f, 0.271315f, -1.000000f},
+    {-0.650832f, 0.315481f, -1.000000f},
+    {-1.240348f, 0.180615f, 0.560630f},
+    {0.000000f, 0.315481f, -1.000000f},
+    {-0.805783f, -0.000334f, 4.284117f},
+    {0.000000f, -0.000334f, 5.383713f},
+    {-0.805782f, 0.180615f, 4.284118f},
+    {0.000000f, 0.180615f, 5.383713f},
+    {-3.119281f, -0.942804f, 2.322021f},
+    {-3.119280f, -0.761855f, 1.882651f},
+    {-0.650832f, 0.315481f, -1.000000f},
+    {-1.240348f, 0.180615f, 0.560630f},
+    {-3.119280f, -0.761855f, 1.882651f},
+    {-0.507604f, 0.512063f, -1.000000f},
+    {-0.556329f, 0.986010f, 1.000001f},
+    {0.000000f, 0.986010f, 1.000000f},
+    {0.000000f, 0.512063f, -1.000000f},
+    {-0.218978f, 0.452316f, 3.753458f},
+    {0.000000f, 0.452316f, 4.853053f},
+    {-1.240349f, -0.000333f, -0.372761f},
+    {0.000000f, -0.000333f, -0.372761f},
+    {-1.240349f, 0.180615f, -0.372760f},
+    {-3.119281f, -0.942804f, 0.949260f},
+    {-3.119281f, -0.761855f, 0.949260f},
+    {-1.240349f, 0.180615f, -0.372760f},
+    {-3.119281f, -0.761855f, 0.949260f},
+    {-0.653542f, 0.986010f, -0.372760f},
+    {0.000000f, 0.986010f, -0.372761f},
+    {-3.457423f, -0.942803f, 2.322021f},
+    {-3.457423f, -0.761854f, 1.882651f},
+    {-3.457423f, -0.942803f, 0.949260f},
+    {-3.457423f, -0.761854f, 0.949261f},
+    {-3.119281f, -0.942804f, 2.322021f},
+    {-3.119280f, -0.761855f, 2.321895f},
+    {-3.457423f, -0.942803f, 2.322021f},
+    {-3.457423f, -0.761854f, 2.321895f},
+    {-3.182715f, -0.908858f, 2.321997f},
+    {-3.182715f, -0.795800f, 2.321919f},
+    {-3.393988f, -0.908857f, 2.321997f},
+    {-3.393988f, -0.795800f, 2.321919f},
+    {-3.182715f, -0.907922f, 3.673004f},
+    {-3.182715f, -0.794865f, 3.672926f},
+    {-3.393988f, -0.907922f, 3.673004f},
+    {-3.393988f, -0.794865f, 3.672926f},
+    {-3.242466f, -0.875948f, 3.672982f},
+    {-3.242466f, -0.826839f, 3.672948f},
+    {-3.334237f, -0.875948f, 3.672982f},
+    {-3.334237f, -0.826839f, 3.672948f},
+    {-3.242466f, -0.875760f, 3.945883f},
+    {-3.242466f, -0.826651f, 3.945849f},
+    {-3.334237f, -0.875760f, 3.945883f},
+    {-3.334237f, -0.826651f, 3.945849f},
+    {0.000000f, 0.409363f, -1.000000f},
+    {-0.960107f, 0.565249f, 0.770461f},
+    {-0.525541f, 0.310371f, 4.030690f},
+    {-0.582431f, 0.409363f, -1.000000f},
+    {0.000000f, 0.310371f, 5.130285f},
+    {-0.960107f, 0.565249f, -0.372760f},
+    {-0.845504f, 0.498033f, 1.630241f},
+    {-0.538940f, 0.845265f, 1.726136f},
+    {0.000000f, 0.948491f, 1.700656f},
+    {0.000000f, -0.000333f, 2.156063f},
+    {-1.125746f, 0.180615f, 1.542580f},
+    {-1.125746f, -0.000333f, 1.866080f},
+};
+
+static constexpr Edge kShipEdges[] = {
+    {0, 2},
+    {0, 14},
+    {0, 56},
+    {1, 3},
+    {1, 6},
+    {1, 14},
+    {1, 52},
+    {1, 55},
+    {2, 8},
+    {2, 15},
+    {2, 47},
+    {2, 59},
+    {3, 7},
+    {3, 9},
+    {3, 15},
+    {3, 45},
+    {3, 51},
+    {4, 5},
+    {4, 52},
+    {4, 61},
+    {5, 46},
+    {5, 51},
+    {5, 63},
+    {6, 7},
+    {6, 16},
+    {6, 21},
+    {6, 25},
+    {7, 10},
+    {7, 17},
+    {7, 22},
+    {7, 26},
+    {8, 18},
+    {9, 10},
+    {9, 18},
+    {10, 19},
+    {11, 20},
+    {11, 47},
+    {11, 72},
+    {12, 20},
+    {12, 45},
+    {12, 50},
+    {12, 71},
+    {13, 46},
+    {13, 50},
+    {13, 74},
+    {14, 15},
+    {14, 16},
+    {14, 18},
+    {14, 76},
+    {15, 18},
+    {15, 48},
+    {16, 17},
+    {16, 19},
+    {16, 23},
+    {17, 19},
+    {17, 24},
+    {18, 19},
+    {20, 48},
+    {20, 83},
+    {21, 22},
+    {21, 23},
+    {21, 27},
+    {22, 24},
+    {22, 28},
+    {23, 24},
+    {25, 26},
+    {25, 27},
+    {25, 29},
+    {26, 28},
+    {26, 30},
+    {27, 28},
+    {27, 31},
+    {28, 32},
+    {29, 30},
+    {29, 31},
+    {29, 33},
+    {30, 32},
+    {30, 34},
+    {31, 32},
+    {31, 35},
+    {32, 36},
+    {33, 34},
+    {33, 35},
+    {33, 37},
+    {34, 36},
+    {34, 38},
+    {35, 36},
+    {35, 39},
+    {36, 40},
+    {37, 38},
+    {37, 39},
+    {37, 41},
+    {38, 40},
+    {38, 42},
+    {39, 40},
+    {39, 43},
+    {40, 44},
+    {41, 42},
+    {41, 43},
+    {42, 44},
+    {43, 44},
+    {45, 48},
+    {45, 49},
+    {46, 49},
+    {46, 112},
+    {47, 48},
+    {47, 108},
+    {49, 50},
+    {49, 51},
+    {50, 116},
+    {51, 52},
+    {52, 117},
+    {53, 56},
+    {53, 57},
+    {53, 75},
+    {54, 55},
+    {54, 58},
+    {54, 64},
+    {54, 75},
+    {54, 119},
+    {55, 76},
+    {55, 117},
+    {56, 59},
+    {56, 76},
+    {57, 59},
+    {57, 66},
+    {57, 77},
+    {57, 111},
+    {58, 65},
+    {58, 67},
+    {58, 77},
+    {58, 109},
+    {58, 118},
+    {59, 108},
+    {60, 61},
+    {60, 62},
+    {60, 119},
+    {61, 63},
+    {61, 117},
+    {62, 63},
+    {62, 110},
+    {62, 118},
+    {63, 112},
+    {64, 65},
+    {64, 78},
+    {64, 84},
+    {64, 88},
+    {65, 68},
+    {65, 79},
+    {65, 85},
+    {65, 89},
+    {66, 80},
+    {67, 68},
+    {67, 80},
+    {68, 81},
+    {69, 72},
+    {69, 82},
+    {69, 111},
+    {70, 71},
+    {70, 82},
+    {70, 109},
+    {70, 115},
+    {71, 83},
+    {71, 116},
+    {72, 83},
+    {72, 108},
+    {73, 74},
+    {73, 110},
+    {73, 115},
+    {74, 112},
+    {74, 116},
+    {75, 76},
+    {75, 77},
+    {75, 78},
+    {75, 80},
+    {77, 80},
+    {77, 113},
+    {78, 79},
+    {78, 81},
+    {78, 86},
+    {79, 81},
+    {79, 87},
+    {80, 81},
+    {82, 83},
+    {82, 113},
+    {84, 85},
+    {84, 86},
+    {84, 90},
+    {85, 87},
+    {85, 91},
+    {86, 87},
+    {88, 89},
+    {88, 90},
+    {88, 92},
+    {89, 91},
+    {89, 93},
+    {90, 91},
+    {90, 94},
+    {91, 95},
+    {92, 93},
+    {92, 94},
+    {92, 96},
+    {93, 95},
+    {93, 97},
+    {94, 95},
+    {94, 98},
+    {95, 99},
+    {96, 97},
+    {96, 98},
+    {96, 100},
+    {97, 99},
+    {97, 101},
+    {98, 99},
+    {98, 102},
+    {99, 103},
+    {100, 101},
+    {100, 102},
+    {100, 104},
+    {101, 103},
+    {101, 105},
+    {102, 103},
+    {102, 106},
+    {103, 107},
+    {104, 105},
+    {104, 106},
+    {105, 107},
+    {106, 107},
+    {108, 111},
+    {109, 113},
+    {109, 114},
+    {110, 112},
+    {110, 114},
+    {111, 113},
+    {114, 115},
+    {114, 118},
+    {115, 116},
+    {117, 119},
+    {118, 119},
+};
+
+struct ModelBounds {
     float min_x = 0.0f;
     float max_x = 0.0f;
     float min_y = 0.0f;
     float max_y = 0.0f;
+    float min_z = 0.0f;
+    float max_z = 0.0f;
 };
 
-static WireframeBounds bounds_from_lines(const std::vector<std::vector<lv_point_precise_t>>& lines)
+static ModelBounds ship_bounds()
 {
-    WireframeBounds bounds;
-    bool initialized = false;
-    for (const auto& line : lines) {
-        for (const auto& pt : line) {
-            if (!initialized) {
-                bounds.min_x = bounds.max_x = pt.x;
-                bounds.min_y = bounds.max_y = pt.y;
-                initialized = true;
-            } else {
-                bounds.min_x = std::min(bounds.min_x, static_cast<float>(pt.x));
-                bounds.max_x = std::max(bounds.max_x, static_cast<float>(pt.x));
-                bounds.min_y = std::min(bounds.min_y, static_cast<float>(pt.y));
-                bounds.max_y = std::max(bounds.max_y, static_cast<float>(pt.y));
-            }
-        }
+    ModelBounds bounds;
+    bounds.min_x = bounds.max_x = kShipVertices[0].x;
+    bounds.min_y = bounds.max_y = kShipVertices[0].y;
+    bounds.min_z = bounds.max_z = kShipVertices[0].z;
+    for (size_t i = 1; i < (sizeof(kShipVertices) / sizeof(kShipVertices[0])); ++i) {
+        const auto& v = kShipVertices[i];
+        bounds.min_x = std::min(bounds.min_x, v.x);
+        bounds.max_x = std::max(bounds.max_x, v.x);
+        bounds.min_y = std::min(bounds.min_y, v.y);
+        bounds.max_y = std::max(bounds.max_y, v.y);
+        bounds.min_z = std::min(bounds.min_z, v.z);
+        bounds.max_z = std::max(bounds.max_z, v.z);
     }
     return bounds;
 }
+} // namespace
 
-struct WireframeLine {
-    std::vector<lv_point_precise_t> base_points;
-    std::vector<lv_point_precise_t> points;
-    lv_obj_t* line = nullptr;
-};
+namespace launcher_view {
 
-static WireframeBounds bounds_from_lines(const std::vector<WireframeLine>& lines)
-{
-    WireframeBounds bounds;
-    bool initialized = false;
-    for (const auto& line : lines) {
-        for (const auto& pt : line.base_points) {
-            if (!initialized) {
-                bounds.min_x = bounds.max_x = pt.x;
-                bounds.min_y = bounds.max_y = pt.y;
-                initialized = true;
-            } else {
-                bounds.min_x = std::min(bounds.min_x, static_cast<float>(pt.x));
-                bounds.max_x = std::max(bounds.max_x, static_cast<float>(pt.x));
-                bounds.min_y = std::min(bounds.min_y, static_cast<float>(pt.y));
-                bounds.max_y = std::max(bounds.max_y, static_cast<float>(pt.y));
-            }
-        }
-    }
-    return bounds;
-}
-
-struct Wireframe {
+struct ShipWireframe {
     lv_obj_t* container = nullptr;
-    std::vector<WireframeLine> lines;
-    lv_coord_t width = 0;
-    lv_coord_t height = 0;
+    std::vector<lv_obj_t*> lines;
+    std::vector<std::array<lv_point_precise_t, 2>> line_points;
+    std::vector<lv_point_precise_t> projected_points;
     float center_x = 0.0f;
     float center_y = 0.0f;
+    float center_z = 0.0f;
+    float scale = 1.0f;
+    float depth = 1.0f;
+    float origin_x = 0.0f;
+    float origin_y = 0.0f;
 
     void init(lv_obj_t* parent, lv_coord_t w, lv_coord_t h, lv_coord_t x, lv_coord_t y, lv_color_t color, int line_width)
     {
-        width = w;
-        height = h;
         container = lv_obj_create(parent);
         lv_obj_set_size(container, w, h);
         lv_obj_align(container, LV_ALIGN_LEFT_MID, x, y);
@@ -104,50 +458,38 @@ struct Wireframe {
         lv_obj_set_style_border_width(container, 0, 0);
         lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);
 
-        auto add_line = [&](std::initializer_list<lv_point_precise_t> pts) {
-            WireframeLine wf_line;
-            wf_line.base_points.assign(pts.begin(), pts.end());
-            wf_line.points = wf_line.base_points;
-            wf_line.line = lv_line_create(container);
-            lv_line_set_points(wf_line.line, wf_line.points.data(), wf_line.points.size());
-            lv_obj_set_style_line_color(wf_line.line, color, 0);
-            lv_obj_set_style_line_width(wf_line.line, line_width, 0);
-            lv_obj_set_style_line_rounded(wf_line.line, true, 0);
-            lines.push_back(std::move(wf_line));
-        };
-
-        add_line({{78, 106}, {118, 92}});
-        add_line({{78, 106}, {118, 120}});
-        add_line({{118, 92}, {230, 88}});
-        add_line({{118, 120}, {230, 130}});
-        add_line({{118, 106}, {240, 108}});
-        add_line({{230, 88}, {270, 104}});
-        add_line({{230, 130}, {270, 114}});
-        add_line({{270, 104}, {270, 114}});
-        add_line({{138, 102}, {170, 94}});
-        add_line({{170, 94}, {210, 100}});
-        add_line({{138, 110}, {210, 114}});
-        add_line({{150, 108}, {175, 102}});
-        add_line({{175, 102}, {195, 106}});
-        add_line({{155, 112}, {190, 116}});
-        add_line({{150, 110}, {210, 150}});
-        add_line({{158, 116}, {220, 158}});
-        add_line({{210, 150}, {258, 160}});
-        add_line({{220, 158}, {258, 168}});
-        add_line({{155, 104}, {208, 72}});
-        add_line({{162, 108}, {218, 76}});
-        add_line({{208, 72}, {246, 60}});
-        add_line({{218, 76}, {246, 66}});
-        add_line({{240, 92}, {260, 70}});
-        add_line({{244, 96}, {266, 76}});
-        add_line({{246, 110}, {284, 120}});
-        add_line({{246, 112}, {284, 128}});
-        add_line({{284, 120}, {292, 134}});
-        add_line({{284, 128}, {292, 134}});
-
-        auto bounds = bounds_from_lines(lines);
+        ModelBounds bounds = ship_bounds();
         center_x = (bounds.min_x + bounds.max_x) * 0.5f;
         center_y = (bounds.min_y + bounds.max_y) * 0.5f;
+        center_z = (bounds.min_z + bounds.max_z) * 0.5f;
+
+        float model_w = bounds.max_x - bounds.min_x;
+        float model_h = bounds.max_y - bounds.min_y;
+        float model_z = bounds.max_z - bounds.min_z;
+        float scale_x = static_cast<float>(w) / model_w;
+        float scale_y = static_cast<float>(h) / model_h;
+        scale = 0.82f * std::min(scale_x, scale_y);
+        depth = model_z * 2.0f;
+        if (depth <= 0.0f) {
+            depth = 1.0f;
+        }
+        origin_x = static_cast<float>(w) * 0.5f;
+        origin_y = static_cast<float>(h) * 0.5f;
+
+        size_t edge_count = sizeof(kShipEdges) / sizeof(kShipEdges[0]);
+        size_t vertex_count = sizeof(kShipVertices) / sizeof(kShipVertices[0]);
+        lines.reserve(edge_count);
+        line_points.assign(edge_count, {{{0, 0}, {0, 0}}});
+        projected_points.assign(vertex_count, {0, 0});
+
+        for (size_t i = 0; i < edge_count; ++i) {
+            lv_obj_t* line = lv_line_create(container);
+            lv_line_set_points(line, line_points[i].data(), line_points[i].size());
+            lv_obj_set_style_line_color(line, color, 0);
+            lv_obj_set_style_line_width(line, line_width, 0);
+            lv_obj_set_style_line_rounded(line, true, 0);
+            lines.push_back(line);
+        }
     }
 
     void update(float roll_deg, float pitch_deg)
@@ -157,35 +499,47 @@ struct Wireframe {
         }
 
         float roll = roll_deg / kRadToDeg;
-        float pitch_norm = std::clamp(pitch_deg / 45.0f, -1.0f, 1.0f);
+        float pitch = pitch_deg / kRadToDeg;
         float cos_r = std::cos(roll);
         float sin_r = std::sin(roll);
+        float cos_p = std::cos(pitch);
+        float sin_p = std::sin(pitch);
 
-        float scale_y = 1.0f - (pitch_norm * 0.15f);
-        float scale_x = 1.0f + (pitch_norm * 0.06f);
-        float shift_y = pitch_norm * 10.0f;
-        float shear_x = pitch_norm * 0.2f;
+        size_t vertex_count = projected_points.size();
+        for (size_t i = 0; i < vertex_count; ++i) {
+            const auto& v = kShipVertices[i];
+            float x = v.x - center_x;
+            float y = v.y - center_y;
+            float z = v.z - center_z;
 
-        float cx = center_x;
-        float cy = center_y;
+            float y1 = (y * cos_p) - (z * sin_p);
+            float z1 = (y * sin_p) + (z * cos_p);
+            float x1 = x;
 
-        for (auto& line : lines) {
-            for (size_t i = 0; i < line.base_points.size(); ++i) {
-                float dx = (line.base_points[i].x - cx) * scale_x;
-                float dy = (line.base_points[i].y - cy) * scale_y;
+            float x2 = (x1 * cos_r) - (y1 * sin_r);
+            float y2 = (x1 * sin_r) + (y1 * cos_r);
+            float z2 = z1;
 
-                dx += dy * shear_x;
+            float perspective = depth / (depth + z2 + depth * 0.15f);
+            float px = origin_x + (x2 * scale * perspective);
+            float py = origin_y - (y2 * scale * perspective);
 
-                float rx = dx * cos_r - dy * sin_r;
-                float ry = dx * sin_r + dy * cos_r;
+            projected_points[i].x = static_cast<lv_coord_t>(px);
+            projected_points[i].y = static_cast<lv_coord_t>(py);
+        }
 
-                line.points[i].x = static_cast<lv_coord_t>(cx + rx);
-                line.points[i].y = static_cast<lv_coord_t>(cy + ry + shift_y);
-            }
-            lv_line_set_points(line.line, line.points.data(), line.points.size());
+        for (size_t i = 0; i < line_points.size(); ++i) {
+            const auto& edge = kShipEdges[i];
+            line_points[i][0] = projected_points[edge.a];
+            line_points[i][1] = projected_points[edge.b];
+            lv_line_set_points(lines[i], line_points[i].data(), line_points[i].size());
         }
     }
 };
+
+} // namespace launcher_view
+
+namespace {
 
 class ImuDetailWindow : public ui::Window {
 public:
@@ -200,7 +554,7 @@ public:
     {
         _window->setScrollbarMode(LV_SCROLLBAR_MODE_OFF);
 
-        _wireframe.init(_window->get(), 360, 220, 36, -10, lv_color_hex(_wireframe_color), 3);
+        _ship_wireframe.init(_window->get(), 360, 220, 36, -10, lv_color_hex(_wireframe_color), 3);
 
         _label_roll = std::make_unique<Label>(_window->get());
         _label_roll->align(LV_ALIGN_TOP_RIGHT, -40, 60);
@@ -252,11 +606,11 @@ public:
             _label_accel_z->setText(fmt::format("Accel Z: {:+.3f} g", accel_z));
         }
 
-        _wireframe.update(roll_deg, pitch_deg);
+        _ship_wireframe.update(roll_deg, pitch_deg);
     }
 
 private:
-    Wireframe _wireframe;
+    ShipWireframe _ship_wireframe;
     std::unique_ptr<Label> _label_roll;
     std::unique_ptr<Label> _label_pitch;
     std::unique_ptr<Label> _label_accel_x;
@@ -284,44 +638,8 @@ void PanelImu::init()
     _label_attitude->setTextColor(lv_color_hex(0x4FD88E));
     _label_attitude->setText("ATTITUDE");
 
-    lv_obj_t* wire_container = lv_obj_create(_wireframe->get());
-    lv_obj_set_size(wire_container, 170, 96);
-    lv_obj_align(wire_container, LV_ALIGN_TOP_LEFT, 5, 16);
-    lv_obj_set_style_bg_opa(wire_container, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(wire_container, 0, 0);
-    lv_obj_clear_flag(wire_container, LV_OBJ_FLAG_SCROLLABLE);
-
-    auto add_line = [&](std::initializer_list<lv_point_precise_t> pts) {
-        _wire_base_points.emplace_back(pts.begin(), pts.end());
-        _wire_points.emplace_back(_wire_base_points.back());
-        lv_obj_t* line = lv_line_create(wire_container);
-        lv_line_set_points(line, _wire_points.back().data(), _wire_points.back().size());
-        lv_obj_set_style_line_color(line, lv_color_hex(_wireframe_color), 0);
-        lv_obj_set_style_line_width(line, 2, 0);
-        lv_obj_set_style_line_rounded(line, true, 0);
-        _wire_lines.push_back(line);
-    };
-
-    add_line({{42, 46}, {126, 42}});
-    add_line({{30, 56}, {42, 46}});
-    add_line({{126, 42}, {142, 52}});
-    add_line({{42, 70}, {128, 74}});
-    add_line({{78, 58}, {78, 80}});
-    add_line({{26, 62}, {56, 62}});
-    add_line({{108, 64}, {146, 66}});
-    add_line({{56, 58}, {42, 62}});
-    add_line({{98, 60}, {110, 64}});
-    add_line({{64, 46}, {78, 34}});
-    add_line({{78, 34}, {94, 44}});
-    add_line({{64, 80}, {94, 82}});
-    add_line({{64, 80}, {52, 90}});
-    add_line({{94, 82}, {106, 92}});
-    add_line({{56, 64}, {68, 74}});
-    add_line({{116, 68}, {104, 76}});
-
-    auto bounds = bounds_from_lines(_wire_base_points);
-    _wire_center_x = (bounds.min_x + bounds.max_x) * 0.5f;
-    _wire_center_y = (bounds.min_y + bounds.max_y) * 0.5f;
+    _ship_wireframe = std::make_unique<ShipWireframe>();
+    _ship_wireframe->init(_wireframe->get(), 170, 96, 5, 16, lv_color_hex(_wireframe_color), 2);
 
     _wireframe->onClick().connect([&]() {
         if (_window) {
@@ -350,33 +668,8 @@ void PanelImu::update(bool isStacked)
     float roll_deg = std::atan2(accel_y, accel_z) * kRadToDeg;
     float pitch_deg = std::atan2(-accel_x, std::sqrt(accel_y * accel_y + accel_z * accel_z)) * kRadToDeg;
 
-    float roll = roll_deg / kRadToDeg;
-    float cos_r = std::cos(roll);
-    float sin_r = std::sin(roll);
-
-    float pitch_norm = std::clamp(pitch_deg / 45.0f, -1.0f, 1.0f);
-    float scale_y = 1.0f - (pitch_norm * 0.12f);
-    float scale_x = 1.0f + (pitch_norm * 0.05f);
-    float shift_y = pitch_norm * 5.5f;
-    float shear_x = pitch_norm * 0.16f;
-
-    float cx = _wire_center_x;
-    float cy = _wire_center_y;
-
-    for (size_t idx = 0; idx < _wire_lines.size(); ++idx) {
-        for (size_t i = 0; i < _wire_base_points[idx].size(); ++i) {
-            float dx = (_wire_base_points[idx][i].x - cx) * scale_x;
-            float dy = (_wire_base_points[idx][i].y - cy) * scale_y;
-
-            dx += dy * shear_x;
-
-            float rx = dx * cos_r - dy * sin_r;
-            float ry = dx * sin_r + dy * cos_r;
-
-            _wire_points[idx][i].x = static_cast<lv_coord_t>(cx + rx);
-            _wire_points[idx][i].y = static_cast<lv_coord_t>(cy + ry + shift_y);
-        }
-        lv_line_set_points(_wire_lines[idx], _wire_points[idx].data(), _wire_points[idx].size());
+    if (_ship_wireframe) {
+        _ship_wireframe->update(roll_deg, pitch_deg);
     }
 
     if (_window) {
