@@ -50,4 +50,11 @@ void BoostSettingsStore::set_dereverb(float v01) { auto s = get(); s.dereverb = 
 void BoostSettingsStore::set_beamform_enable(bool v) { auto s = get(); s.beamform_enable = v; set(s); }
 void BoostSettingsStore::set_beam_width(float v01) { auto s = get(); s.beam_width = clamp01(v01); set(s); }
 
+void BoostSettingsStore::set_eq_low_db(float db) { auto s = get(); s.eq_low_db = db; set(s); }
+void BoostSettingsStore::set_eq_mid_db(float db) { auto s = get(); s.eq_mid_db = db; set(s); }
+void BoostSettingsStore::set_eq_high_db(float db) { auto s = get(); s.eq_high_db = db; set(s); }
+
+void BoostSettingsStore::set_aes_enable(bool v) { auto s = get(); s.aes_enable = v; set(s); }
+void BoostSettingsStore::set_headset_mic_only(bool v) { auto s = get(); s.headset_mic_only = v; set(s); }
+
 } // namespace app::dsp

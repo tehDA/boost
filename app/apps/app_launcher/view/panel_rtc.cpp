@@ -157,29 +157,45 @@ private:
 void PanelRtc::init()
 {
     _label_time = std::make_unique<Label>(lv_screen_active());
-    _label_time->align(LV_ALIGN_CENTER, 335, -249);
-    _label_time->setTextFont(&lv_font_montserrat_22);
-    _label_time->setTextColor(lv_color_hex(0xD86037));
+    _label_time->align(LV_ALIGN_TOP_LEFT, 40, 84);
+    _label_time->setTextFont(&lv_font_montserrat_48);
+    _label_time->setTextColor(lv_color_hex(0xE7F6FF));
     _label_time->setText("..");
 
     _label_date = std::make_unique<Label>(lv_screen_active());
-    _label_date->align(LV_ALIGN_CENTER, 335, -223);
-    _label_date->setTextFont(&lv_font_montserrat_18);
-    _label_date->setTextColor(lv_color_hex(0xD86037));
+    _label_date->align(LV_ALIGN_TOP_LEFT, 44, 140);
+    _label_date->setTextFont(&lv_font_montserrat_22);
+    _label_date->setTextColor(lv_color_hex(0x9ECBE0));
     _label_date->setText("..");
 
-    _btn_rtc_setting = std::make_unique<Container>(lv_screen_active());
-    _btn_rtc_setting->align(LV_ALIGN_CENTER, 422, -228);
-    _btn_rtc_setting->setSize(103, 95);
-    _btn_rtc_setting->setOpa(0);
-    _btn_rtc_setting->onClick().connect([&] {
-        audio::play_next_tone_progression();
+    _label_hint = std::make_unique<Label>(lv_screen_active());
+    _label_hint->align(LV_ALIGN_TOP_LEFT, 44, 170);
+    _label_hint->setTextFont(&lv_font_montserrat_16);
+    _label_hint->setTextColor(lv_color_hex(0x4F6C7C));
+    _label_hint->setText("Hold to set date/time");
 
-        // Create window
-        _window = std::make_unique<RtcSettingWindow>();
-        _window->init(lv_screen_active());
-        _window->open();
-    });
+    _btn_rtc_setting = std::make_unique<Container>(lv_screen_active());
+    _btn_rtc_setting->align(LV_ALIGN_TOP_LEFT, 32, 78);
+    _btn_rtc_setting->setSize(360, 120);
+    _btn_rtc_setting->setOpa(0);
+
+    lv_obj_add_event_cb(
+        _btn_rtc_setting->get(),
+        [](lv_event_t* e) {
+            auto* panel = static_cast<PanelRtc*>(lv_event_get_user_data(e));
+            if (!panel || panel->_window) {
+                return;
+            }
+
+            audio::play_next_tone_progression();
+
+            panel->_window = std::make_unique<RtcSettingWindow>();
+            panel->_window->init(lv_screen_active());
+            panel->_window->open();
+        },
+        LV_EVENT_LONG_PRESSED,
+        this);
+
 }
 
 void PanelRtc::update(bool isStacked)
