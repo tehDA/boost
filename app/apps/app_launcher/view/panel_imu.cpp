@@ -116,22 +116,34 @@ struct Wireframe {
             lines.push_back(std::move(wf_line));
         };
 
-        add_line({{40, 34}, {140, 34}});
-        add_line({{30, 44}, {40, 34}});
-        add_line({{140, 34}, {150, 44}});
-        add_line({{40, 54}, {140, 54}});
-        add_line({{80, 54}, {80, 74}});
-        add_line({{22, 64}, {55, 64}});
-        add_line({{125, 64}, {158, 64}});
-        add_line({{55, 58}, {38, 64}});
-        add_line({{105, 58}, {122, 64}});
-        add_line({{70, 34}, {80, 24}});
-        add_line({{80, 24}, {90, 34}});
-        add_line({{70, 74}, {90, 74}});
-        add_line({{70, 74}, {60, 84}});
-        add_line({{90, 74}, {100, 84}});
-        add_line({{55, 64}, {65, 72}});
-        add_line({{125, 64}, {115, 72}});
+        add_line({{78, 106}, {118, 92}});
+        add_line({{78, 106}, {118, 120}});
+        add_line({{118, 92}, {230, 88}});
+        add_line({{118, 120}, {230, 130}});
+        add_line({{118, 106}, {240, 108}});
+        add_line({{230, 88}, {270, 104}});
+        add_line({{230, 130}, {270, 114}});
+        add_line({{270, 104}, {270, 114}});
+        add_line({{138, 102}, {170, 94}});
+        add_line({{170, 94}, {210, 100}});
+        add_line({{138, 110}, {210, 114}});
+        add_line({{150, 108}, {175, 102}});
+        add_line({{175, 102}, {195, 106}});
+        add_line({{155, 112}, {190, 116}});
+        add_line({{150, 110}, {210, 150}});
+        add_line({{158, 116}, {220, 158}});
+        add_line({{210, 150}, {258, 160}});
+        add_line({{220, 158}, {258, 168}});
+        add_line({{155, 104}, {208, 72}});
+        add_line({{162, 108}, {218, 76}});
+        add_line({{208, 72}, {246, 60}});
+        add_line({{218, 76}, {246, 66}});
+        add_line({{240, 92}, {260, 70}});
+        add_line({{244, 96}, {266, 76}});
+        add_line({{246, 110}, {284, 120}});
+        add_line({{246, 112}, {284, 128}});
+        add_line({{284, 120}, {292, 134}});
+        add_line({{284, 128}, {292, 134}});
 
         auto bounds = bounds_from_lines(lines);
         center_x = (bounds.min_x + bounds.max_x) * 0.5f;
@@ -273,8 +285,8 @@ void PanelImu::init()
     _label_attitude->setText("ATTITUDE");
 
     lv_obj_t* wire_container = lv_obj_create(_wireframe->get());
-    lv_obj_set_size(wire_container, 160, 90);
-    lv_obj_align(wire_container, LV_ALIGN_TOP_LEFT, 8, 20);
+    lv_obj_set_size(wire_container, 170, 96);
+    lv_obj_align(wire_container, LV_ALIGN_TOP_LEFT, 5, 16);
     lv_obj_set_style_bg_opa(wire_container, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(wire_container, 0, 0);
     lv_obj_clear_flag(wire_container, LV_OBJ_FLAG_SCROLLABLE);
@@ -290,22 +302,22 @@ void PanelImu::init()
         _wire_lines.push_back(line);
     };
 
-    add_line({{40, 34}, {140, 34}});
-    add_line({{30, 44}, {40, 34}});
-    add_line({{140, 34}, {150, 44}});
-    add_line({{40, 54}, {140, 54}});
-    add_line({{80, 54}, {80, 74}});
-    add_line({{22, 64}, {55, 64}});
-    add_line({{125, 64}, {158, 64}});
-    add_line({{55, 58}, {38, 64}});
-    add_line({{105, 58}, {122, 64}});
-    add_line({{70, 34}, {80, 24}});
-    add_line({{80, 24}, {90, 34}});
-    add_line({{70, 74}, {90, 74}});
-    add_line({{70, 74}, {60, 84}});
-    add_line({{90, 74}, {100, 84}});
-    add_line({{55, 64}, {65, 72}});
-    add_line({{125, 64}, {115, 72}});
+    add_line({{42, 46}, {126, 42}});
+    add_line({{30, 56}, {42, 46}});
+    add_line({{126, 42}, {142, 52}});
+    add_line({{42, 70}, {128, 74}});
+    add_line({{78, 58}, {78, 80}});
+    add_line({{26, 62}, {56, 62}});
+    add_line({{108, 64}, {146, 66}});
+    add_line({{56, 58}, {42, 62}});
+    add_line({{98, 60}, {110, 64}});
+    add_line({{64, 46}, {78, 34}});
+    add_line({{78, 34}, {94, 44}});
+    add_line({{64, 80}, {94, 82}});
+    add_line({{64, 80}, {52, 90}});
+    add_line({{94, 82}, {106, 92}});
+    add_line({{56, 64}, {68, 74}});
+    add_line({{116, 68}, {104, 76}});
 
     auto bounds = bounds_from_lines(_wire_base_points);
     _wire_center_x = (bounds.min_x + bounds.max_x) * 0.5f;
@@ -343,10 +355,10 @@ void PanelImu::update(bool isStacked)
     float sin_r = std::sin(roll);
 
     float pitch_norm = std::clamp(pitch_deg / 45.0f, -1.0f, 1.0f);
-    float scale_y = 1.0f - (pitch_norm * 0.15f);
-    float scale_x = 1.0f + (pitch_norm * 0.06f);
-    float shift_y = pitch_norm * 8.0f;
-    float shear_x = pitch_norm * 0.2f;
+    float scale_y = 1.0f - (pitch_norm * 0.12f);
+    float scale_x = 1.0f + (pitch_norm * 0.05f);
+    float shift_y = pitch_norm * 5.5f;
+    float shear_x = pitch_norm * 0.16f;
 
     float cx = _wire_center_x;
     float cy = _wire_center_y;
