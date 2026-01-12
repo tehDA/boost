@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 #include "rx8130.h"
+#include <ctime>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <string.h>
@@ -93,18 +94,27 @@ void RX8130_Class::initBat()
 
 void RX8130_Class::setTime(struct tm* time)
 {
+    struct tm normalized = *time;
+    normalized.tm_isdst = -1;
+    std::mktime(&normalized);
+    int full_year = normalized.tm_year + 1900;
+    uint8_t rtc_year = 0;
+    if (full_year >= 2000) {
+        rtc_year = static_cast<uint8_t>(full_year - 2000);
+    } else {
+        rtc_year = static_cast<uint8_t>(full_year - 1900);
+    }
+    uint8_t rtc_month = static_cast<uint8_t>(normalized.tm_mon + 1);
     uint8_t rbuf = 0;
-
-    time->tm_year -= 100;
 
     // set STOP bit before changing clock/calendar
     rbuf = readRegister8(RX8130_REG_CTRL0);
     rbuf = rbuf | RX8130_BIT_CTRL_STOP;
     writeRegister8(RX8130_REG_CTRL0, rbuf);
 
-    uint8_t date[7] = {dec2bcd(time->tm_sec),       dec2bcd(time->tm_min),  dec2bcd(time->tm_hour),
-                       dec2bcd(time->tm_wday),      dec2bcd(time->tm_mday), dec2bcd(time->tm_mon),
-                       dec2bcd(time->tm_year % 100)};
+    uint8_t date[7] = {dec2bcd(normalized.tm_sec),  dec2bcd(normalized.tm_min),  dec2bcd(normalized.tm_hour),
+                       dec2bcd(normalized.tm_wday), dec2bcd(normalized.tm_mday), dec2bcd(rtc_month),
+                       dec2bcd(rtc_year)};
 
     writeRegister(RX8130_REG_SEC, date, 7);
 
@@ -123,11 +133,13 @@ void RX8130_Class::getTime(struct tm* time)
     time->tm_min  = bcd2dec(date[RX8130_REG_MIN - 0x10] & 0x7f);
     time->tm_hour = bcd2dec(date[RX8130_REG_HOUR - 0x10] & 0x3f);  // only 24-hour clock
     time->tm_mday = bcd2dec(date[RX8130_REG_MDAY - 0x10] & 0x3f);
-    time->tm_mon  = bcd2dec(date[RX8130_REG_MONTH - 0x10] & 0x1f);
+    time->tm_mon  = bcd2dec(date[RX8130_REG_MONTH - 0x10] & 0x1f) - 1;
     time->tm_year = bcd2dec(date[RX8130_REG_YEAR - 0x10]);
     time->tm_wday = bcd2dec(date[RX8130_REG_WDAY - 0x10] & 0x7f);
 
-    time->tm_year += 100;
+    if (time->tm_year <= 47) {
+        time->tm_year += 100;
+    }
 }
 
 void RX8130_Class::clearIrqFlags()

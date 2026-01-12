@@ -23,13 +23,14 @@ static const std::string _tag = "panel-imu";
 
 static constexpr int16_t _wireframe_pos_x = 270;
 static constexpr int16_t _wireframe_pos_y = 230;
-static constexpr int16_t _wireframe_w     = 180;
-static constexpr int16_t _wireframe_h     = 110;
+static constexpr int16_t _wireframe_w     = 205;
+static constexpr int16_t _wireframe_h     = 130;
 static constexpr uint32_t _wireframe_color = 0x3AD86D;
 
 namespace {
 
 constexpr float kRadToDeg = 57.2957795f;
+constexpr float kBasePitchOffset = -90.0f / kRadToDeg;
 
 struct Vec3 {
     float x;
@@ -498,8 +499,8 @@ struct ShipWireframe {
             return;
         }
 
-        float roll = pitch_deg / kRadToDeg;
-        float pitch = roll_deg / kRadToDeg;
+        float roll = roll_deg / kRadToDeg;
+        float pitch = (pitch_deg / kRadToDeg) + kBasePitchOffset;
         float cos_r = std::cos(roll);
         float sin_r = std::sin(roll);
         float cos_p = std::cos(pitch);
@@ -562,7 +563,7 @@ public:
     {
         _window->setScrollbarMode(LV_SCROLLBAR_MODE_OFF);
 
-        _ship_wireframe.init(_window->get(), 360, 220, 36, -10, lv_color_hex(_wireframe_color), 3);
+        _ship_wireframe.init(_window->get(), 410, 260, 20, -20, lv_color_hex(_wireframe_color), 3);
 
         _label_roll = std::make_unique<Label>(_window->get());
         _label_roll->align(LV_ALIGN_TOP_RIGHT, -40, 60);
@@ -649,7 +650,7 @@ void PanelImu::init()
     _label_attitude->setText("ATTITUDE");
 
     _ship_wireframe = std::unique_ptr<ShipWireframe, ShipWireframeDeleter>(new ShipWireframe());
-    _ship_wireframe->init(_wireframe->get(), 170, 96, 5, 16, lv_color_hex(_wireframe_color), 2);
+    _ship_wireframe->init(_wireframe->get(), 190, 110, 5, 12, lv_color_hex(_wireframe_color), 2);
 
     _wireframe->onClick().connect([&]() {
         if (_window) {
