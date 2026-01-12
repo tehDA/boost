@@ -13,6 +13,7 @@
 #include <vector>
 
 namespace launcher_view {
+struct ShipWireframe;
 
 /**
  * @brief
@@ -117,16 +118,13 @@ class PanelImu : public PanelBase {
 public:
     void init() override;
     void update(bool isStacked) override;
+    ~PanelImu() override;
 
 private:
     uint32_t _time_count = 0;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _wireframe;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Label> _label_attitude;
-    std::vector<lv_obj_t*> _wire_lines;
-    std::vector<std::vector<lv_point_precise_t>> _wire_points;
-    std::vector<std::vector<lv_point_precise_t>> _wire_base_points;
-    float _wire_center_x = 0.0f;
-    float _wire_center_y = 0.0f;
+    std::unique_ptr<ShipWireframe> _ship_wireframe;
     std::unique_ptr<ui::Window> _window;
 };
 
