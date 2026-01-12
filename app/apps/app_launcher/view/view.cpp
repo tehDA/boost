@@ -41,7 +41,7 @@ void LauncherView::init()
     _panel_overlay->align(LV_ALIGN_CENTER, 0, 0);
     _panel_overlay->setSize(1280, 720);
     lv_obj_set_style_bg_color(_panel_overlay->get(), lv_color_hex(0x061623), 0);
-    lv_obj_set_style_bg_opa(_panel_overlay->get(), LV_OPA_35, 0);
+    lv_obj_set_style_bg_opa(_panel_overlay->get(), LV_OPA_40, 0);
     lv_obj_set_style_border_width(_panel_overlay->get(), 0, 0);
     lv_obj_clear_flag(_panel_overlay->get(), LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_clear_flag(_panel_overlay->get(), LV_OBJ_FLAG_CLICKABLE);
