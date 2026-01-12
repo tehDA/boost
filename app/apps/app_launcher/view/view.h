@@ -123,8 +123,8 @@ private:
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _wireframe;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Label> _label_attitude;
     std::vector<lv_obj_t*> _wire_lines;
-    std::vector<std::vector<lv_point_t>> _wire_points;
-    std::vector<std::vector<lv_point_t>> _wire_base_points;
+    std::vector<std::vector<lv_point_precise_t>> _wire_points;
+    std::vector<std::vector<lv_point_precise_t>> _wire_base_points;
     std::unique_ptr<ui::Window> _window;
 };
 

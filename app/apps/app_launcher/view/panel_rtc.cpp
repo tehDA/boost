@@ -158,7 +158,7 @@ void PanelRtc::init()
 {
     _label_time = std::make_unique<Label>(lv_screen_active());
     _label_time->align(LV_ALIGN_TOP_LEFT, 40, 84);
-    _label_time->setTextFont(&lv_font_montserrat_48);
+    _label_time->setTextFont(&lv_font_montserrat_32);
     _label_time->setTextColor(lv_color_hex(0xE7F6FF));
     _label_time->setText("..");
 

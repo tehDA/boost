@@ -31,8 +31,8 @@ namespace {
 constexpr float kRadToDeg = 57.2957795f;
 
 struct WireframeLine {
-    std::vector<lv_point_t> base_points;
-    std::vector<lv_point_t> points;
+    std::vector<lv_point_precise_t> base_points;
+    std::vector<lv_point_precise_t> points;
     lv_obj_t* line = nullptr;
 };
 
@@ -53,7 +53,7 @@ struct Wireframe {
         lv_obj_set_style_border_width(container, 0, 0);
         lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);
 
-        auto add_line = [&](std::initializer_list<lv_point_t> pts) {
+        auto add_line = [&](std::initializer_list<lv_point_precise_t> pts) {
             WireframeLine wf_line;
             wf_line.base_points.assign(pts.begin(), pts.end());
             wf_line.points = wf_line.base_points;
@@ -213,7 +213,7 @@ void PanelImu::init()
     lv_obj_set_style_border_width(wire_container, 0, 0);
     lv_obj_clear_flag(wire_container, LV_OBJ_FLAG_SCROLLABLE);
 
-    auto add_line = [&](std::initializer_list<lv_point_t> pts) {
+    auto add_line = [&](std::initializer_list<lv_point_precise_t> pts) {
         _wire_base_points.emplace_back(pts.begin(), pts.end());
         _wire_points.emplace_back(_wire_base_points.back());
         lv_obj_t* line = lv_line_create(wire_container);
