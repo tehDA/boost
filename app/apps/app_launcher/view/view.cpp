@@ -34,6 +34,30 @@ void LauncherView::init()
     lv_obj_set_scroll_dir(scr, LV_DIR_HOR);
     lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_ACTIVE);
 
+    lv_obj_t* lcars_left_rail = lv_obj_create(scr);
+    lv_obj_set_size(lcars_left_rail, 12, 720);
+    lv_obj_set_pos(lcars_left_rail, 0, 0);
+    lv_obj_set_style_bg_color(lcars_left_rail, lv_color_hex(0x1A2A38), 0);
+    lv_obj_set_style_bg_opa(lcars_left_rail, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(lcars_left_rail, 0, 0);
+    lv_obj_clear_flag(lcars_left_rail, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t* lcars_right_rail = lv_obj_create(scr);
+    lv_obj_set_size(lcars_right_rail, 12, 720);
+    lv_obj_set_pos(lcars_right_rail, 1668, 0);
+    lv_obj_set_style_bg_color(lcars_right_rail, lv_color_hex(0x1A2A38), 0);
+    lv_obj_set_style_bg_opa(lcars_right_rail, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(lcars_right_rail, 0, 0);
+    lv_obj_clear_flag(lcars_right_rail, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t* lcars_footer = lv_obj_create(scr);
+    lv_obj_set_size(lcars_footer, 1680, 8);
+    lv_obj_set_pos(lcars_footer, 0, 712);
+    lv_obj_set_style_bg_color(lcars_footer, lv_color_hex(0x0E202E), 0);
+    lv_obj_set_style_bg_opa(lcars_footer, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(lcars_footer, 0, 0);
+    lv_obj_clear_flag(lcars_footer, LV_OBJ_FLAG_SCROLLABLE);
+
     lv_obj_t* lcars_header = lv_obj_create(scr);
     lv_obj_set_size(lcars_header, 640, 36);
     lv_obj_align(lcars_header, LV_ALIGN_TOP_LEFT, 18, 18);
