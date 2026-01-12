@@ -34,6 +34,15 @@ struct BoostSettings
     // Beamforming (future)
     bool beamform_enable = false;
     float beam_width = 0.6f;             // 0..1 (narrow->wide)
+
+    // EQ (future)
+    float eq_low_db = 0.0f;
+    float eq_mid_db = 0.0f;
+    float eq_high_db = 0.0f;
+
+    // I/O routing (future)
+    bool aes_enable = false;
+    bool headset_mic_only = false;       // prefer headset mic, suppress local playback
 };
 
 /**
@@ -66,6 +75,13 @@ public:
 
     void set_beamform_enable(bool v);
     void set_beam_width(float v01);
+
+    void set_eq_low_db(float db);
+    void set_eq_mid_db(float db);
+    void set_eq_high_db(float db);
+
+    void set_aes_enable(bool v);
+    void set_headset_mic_only(bool v);
 
 private:
     BoostSettingsStore() = default;

@@ -90,20 +90,8 @@ void LauncherView::init()
 
     // Install panels
     _panels.push_back(std::make_unique<PanelRtc>());
-    _panels.push_back(std::make_unique<PanelLcdBacklight>());
-    _panels.push_back(std::make_unique<PanelSpeakerVolume>());
-    _panels.push_back(std::make_unique<PanelPowerMonitor>());
     _panels.push_back(std::make_unique<PanelImu>());
-    _panels.push_back(std::make_unique<PanelSwitches>());
-    _panels.push_back(std::make_unique<PanelPower>());
-    _panels.push_back(std::make_unique<PanelCamera>());
-    _panels.push_back(std::make_unique<PanelDualMic>());
-    _panels.push_back(std::make_unique<PanelHeadphone>());
-    _panels.push_back(std::make_unique<PanelSdCard>());
-    _panels.push_back(std::make_unique<PanelI2cScan>());
-    _panels.push_back(std::make_unique<PanelGpioTest>());
-    _panels.push_back(std::make_unique<PanelMusic>());
-    _panels.push_back(std::make_unique<PanelComMonitor>());
+    _panels.push_back(std::make_unique<PanelSpeakerVolume>());
 
     for (auto& panel : _panels) {
         panel->init();
