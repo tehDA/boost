@@ -57,7 +57,19 @@ public:
                 _calendar->align(LV_ALIGN_CENTER, 0, -20);
                 _calendar->setBorderWidth(0, LV_PART_MAIN);
                 _calendar->setBgColor(lv_color_hex(config.bgColor));
-                _calendar->headerDropdownCreate();
+                int current_year = local_time->tm_year + 1900;
+                int start_year = current_year - 5;
+                int end_year = current_year + 25;
+                _year_list.clear();
+                for (int year = start_year; year <= end_year; ++year) {
+                    if (!_year_list.empty()) {
+                        _year_list += "\n";
+                    }
+                    _year_list += std::to_string(year);
+                }
+
+                lv_obj_t* header = lv_calendar_header_dropdown_create(_calendar->get());
+                lv_calendar_header_dropdown_set_year_list(header, _year_list.c_str());
                 _calendar->setTodayDate(local_time->tm_year + 1900, local_time->tm_mon + 1, local_time->tm_mday);
                 _calendar->setShowedDate(local_time->tm_year + 1900, local_time->tm_mon + 1);
                 _calendar->onValueChanged().connect(
@@ -133,6 +145,7 @@ private:
     std::unique_ptr<Label> _label_colon_b;
     std::unique_ptr<Button> _btn_apply;
     std::unique_ptr<Label> _label_msg;
+    std::string _year_list;
 
     std::vector<std::string> generate_options(int start, int end)
     {

@@ -30,17 +30,68 @@ namespace {
 
 constexpr float kRadToDeg = 57.2957795f;
 
+struct WireframeBounds {
+    float min_x = 0.0f;
+    float max_x = 0.0f;
+    float min_y = 0.0f;
+    float max_y = 0.0f;
+};
+
+static WireframeBounds bounds_from_lines(const std::vector<std::vector<lv_point_precise_t>>& lines)
+{
+    WireframeBounds bounds;
+    bool initialized = false;
+    for (const auto& line : lines) {
+        for (const auto& pt : line) {
+            if (!initialized) {
+                bounds.min_x = bounds.max_x = pt.x;
+                bounds.min_y = bounds.max_y = pt.y;
+                initialized = true;
+            } else {
+                bounds.min_x = std::min(bounds.min_x, static_cast<float>(pt.x));
+                bounds.max_x = std::max(bounds.max_x, static_cast<float>(pt.x));
+                bounds.min_y = std::min(bounds.min_y, static_cast<float>(pt.y));
+                bounds.max_y = std::max(bounds.max_y, static_cast<float>(pt.y));
+            }
+        }
+    }
+    return bounds;
+}
+
 struct WireframeLine {
     std::vector<lv_point_precise_t> base_points;
     std::vector<lv_point_precise_t> points;
     lv_obj_t* line = nullptr;
 };
 
+static WireframeBounds bounds_from_lines(const std::vector<WireframeLine>& lines)
+{
+    WireframeBounds bounds;
+    bool initialized = false;
+    for (const auto& line : lines) {
+        for (const auto& pt : line.base_points) {
+            if (!initialized) {
+                bounds.min_x = bounds.max_x = pt.x;
+                bounds.min_y = bounds.max_y = pt.y;
+                initialized = true;
+            } else {
+                bounds.min_x = std::min(bounds.min_x, static_cast<float>(pt.x));
+                bounds.max_x = std::max(bounds.max_x, static_cast<float>(pt.x));
+                bounds.min_y = std::min(bounds.min_y, static_cast<float>(pt.y));
+                bounds.max_y = std::max(bounds.max_y, static_cast<float>(pt.y));
+            }
+        }
+    }
+    return bounds;
+}
+
 struct Wireframe {
     lv_obj_t* container = nullptr;
     std::vector<WireframeLine> lines;
     lv_coord_t width = 0;
     lv_coord_t height = 0;
+    float center_x = 0.0f;
+    float center_y = 0.0f;
 
     void init(lv_obj_t* parent, lv_coord_t w, lv_coord_t h, lv_coord_t x, lv_coord_t y, lv_color_t color, int line_width)
     {
@@ -74,6 +125,17 @@ struct Wireframe {
         add_line({{125, 64}, {158, 64}});
         add_line({{55, 58}, {38, 64}});
         add_line({{105, 58}, {122, 64}});
+        add_line({{70, 34}, {80, 24}});
+        add_line({{80, 24}, {90, 34}});
+        add_line({{70, 74}, {90, 74}});
+        add_line({{70, 74}, {60, 84}});
+        add_line({{90, 74}, {100, 84}});
+        add_line({{55, 64}, {65, 72}});
+        add_line({{125, 64}, {115, 72}});
+
+        auto bounds = bounds_from_lines(lines);
+        center_x = (bounds.min_x + bounds.max_x) * 0.5f;
+        center_y = (bounds.min_y + bounds.max_y) * 0.5f;
     }
 
     void update(float roll_deg, float pitch_deg)
@@ -83,20 +145,24 @@ struct Wireframe {
         }
 
         float roll = roll_deg / kRadToDeg;
+        float pitch_norm = std::clamp(pitch_deg / 45.0f, -1.0f, 1.0f);
         float cos_r = std::cos(roll);
         float sin_r = std::sin(roll);
 
-        float pitch_norm = std::clamp(pitch_deg / 45.0f, -1.0f, 1.0f);
-        float scale_y = 1.0f - (pitch_norm * 0.12f);
-        float shift_y = pitch_norm * 8.0f;
+        float scale_y = 1.0f - (pitch_norm * 0.15f);
+        float scale_x = 1.0f + (pitch_norm * 0.06f);
+        float shift_y = pitch_norm * 10.0f;
+        float shear_x = pitch_norm * 0.2f;
 
-        float cx = width * 0.5f;
-        float cy = height * 0.5f;
+        float cx = center_x;
+        float cy = center_y;
 
         for (auto& line : lines) {
             for (size_t i = 0; i < line.base_points.size(); ++i) {
-                float dx = line.base_points[i].x - cx;
+                float dx = (line.base_points[i].x - cx) * scale_x;
                 float dy = (line.base_points[i].y - cy) * scale_y;
+
+                dx += dy * shear_x;
 
                 float rx = dx * cos_r - dy * sin_r;
                 float ry = dx * sin_r + dy * cos_r;
@@ -233,6 +299,17 @@ void PanelImu::init()
     add_line({{125, 64}, {158, 64}});
     add_line({{55, 58}, {38, 64}});
     add_line({{105, 58}, {122, 64}});
+    add_line({{70, 34}, {80, 24}});
+    add_line({{80, 24}, {90, 34}});
+    add_line({{70, 74}, {90, 74}});
+    add_line({{70, 74}, {60, 84}});
+    add_line({{90, 74}, {100, 84}});
+    add_line({{55, 64}, {65, 72}});
+    add_line({{125, 64}, {115, 72}});
+
+    auto bounds = bounds_from_lines(_wire_base_points);
+    _wire_center_x = (bounds.min_x + bounds.max_x) * 0.5f;
+    _wire_center_y = (bounds.min_y + bounds.max_y) * 0.5f;
 
     _wireframe->onClick().connect([&]() {
         if (_window) {
@@ -266,16 +343,20 @@ void PanelImu::update(bool isStacked)
     float sin_r = std::sin(roll);
 
     float pitch_norm = std::clamp(pitch_deg / 45.0f, -1.0f, 1.0f);
-    float scale_y = 1.0f - (pitch_norm * 0.12f);
-    float shift_y = pitch_norm * 6.0f;
+    float scale_y = 1.0f - (pitch_norm * 0.15f);
+    float scale_x = 1.0f + (pitch_norm * 0.06f);
+    float shift_y = pitch_norm * 8.0f;
+    float shear_x = pitch_norm * 0.2f;
 
-    float cx = 80.0f;
-    float cy = 45.0f;
+    float cx = _wire_center_x;
+    float cy = _wire_center_y;
 
     for (size_t idx = 0; idx < _wire_lines.size(); ++idx) {
         for (size_t i = 0; i < _wire_base_points[idx].size(); ++i) {
-            float dx = _wire_base_points[idx][i].x - cx;
+            float dx = (_wire_base_points[idx][i].x - cx) * scale_x;
             float dy = (_wire_base_points[idx][i].y - cy) * scale_y;
+
+            dx += dy * shear_x;
 
             float rx = dx * cos_r - dy * sin_r;
             float ry = dx * sin_r + dy * cos_r;
