@@ -76,6 +76,16 @@ private:
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _btn_up;
     std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Container> _btn_down;
     smooth_ui_toolkit::AnimateValue _label_y_anim;
+    lv_obj_t* _panel_tuning = nullptr;
+    lv_obj_t* _label_hpf = nullptr;
+    lv_obj_t* _label_lpf = nullptr;
+    lv_obj_t* _label_noise = nullptr;
+    lv_obj_t* _label_speech = nullptr;
+    lv_obj_t* _cb_mono = nullptr;
+    lv_obj_t* _sl_hpf = nullptr;
+    lv_obj_t* _sl_lpf = nullptr;
+    lv_obj_t* _sl_noise = nullptr;
+    lv_obj_t* _sl_speech = nullptr;
 };
 
 /**
@@ -295,7 +305,6 @@ public:
 
 private:
     bool _is_stacked = false;
-    std::unique_ptr<smooth_ui_toolkit::lvgl_cpp::Image> _img_bg;
     std::vector<std::unique_ptr<PanelBase>> _panels;
 
     void update_anim();
